@@ -1,0 +1,142 @@
+{
+  "projectType": "framework",
+  "projectName": "NativePHP Desktop",
+  "projectDescription": "A Laravel package for building native desktop applications with PHP",
+  "theme": "palm",
+  "primaryColor": "#7C3AED",
+  "lightColor": "#A78BFA",
+  "darkColor": "#6D28D9",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "configuration",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "core/application-lifecycle",
+              "core/windows",
+              "core/menu-system",
+              "core/events"
+            ]
+          },
+          {
+            "group": "Features",
+            "pages": [
+              "features/notifications",
+              "features/dialogs",
+              "features/clipboard",
+              "features/system-tray",
+              "features/global-shortcuts",
+              "features/child-processes",
+              "features/auto-updater"
+            ]
+          },
+          {
+            "group": "Building & Distribution",
+            "pages": [
+              "building/overview",
+              "building/configuration",
+              "building/bundling",
+              "building/code-signing"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/queue-workers",
+              "advanced/database",
+              "advanced/storage-disks",
+              "advanced/power-monitoring",
+              "advanced/testing"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Window Management",
+            "pages": [
+              "api/window",
+              "api/menubar"
+            ]
+          },
+          {
+            "group": "User Interface",
+            "pages": [
+              "api/menu",
+              "api/dock",
+              "api/notification",
+              "api/dialog",
+              "api/context-menu"
+            ]
+          },
+          {
+            "group": "System Integration",
+            "pages": [
+              "api/clipboard",
+              "api/global-shortcut",
+              "api/shell",
+              "api/system",
+              "api/screen",
+              "api/power-monitor"
+            ]
+          },
+          {
+            "group": "Process & Updates",
+            "pages": [
+              "api/child-process",
+              "api/queue-worker",
+              "api/updater",
+              "api/settings"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Window management with multiple windows and menubar support",
+    "Native menus and dock integration",
+    "System notifications with actions and replies",
+    "File dialogs for opening and saving files",
+    "Clipboard operations for text and images",
+    "Global keyboard shortcuts",
+    "Child process management for running PHP and Node.js scripts",
+    "Auto-update system with multiple providers",
+    "Queue workers for background tasks",
+    "SQLite database with automatic configuration",
+    "System integration (shell, power monitoring, screen info)",
+    "Application building and code signing"
+  ],
+  "publicApiSurface": [
+    "Window - Window management facade",
+    "Menu - Application menu builder",
+    "MenuBar - System tray/menubar windows",
+    "Dock - macOS dock integration",
+    "Notification - System notifications",
+    "Dialog - File open/save dialogs",
+    "Clipboard - Clipboard operations",
+    "GlobalShortcut - Keyboard shortcuts",
+    "ChildProcess - Process management",
+    "QueueWorker - Background job processing",
+    "Updater - Auto-update functionality",
+    "Shell - Shell integration",
+    "System - System information",
+    "Screen - Display information",
+    "PowerMonitor - Power state monitoring",
+    "Settings - App settings storage",
+    "ContextMenu - Context menu creation"
+  ]
+}
