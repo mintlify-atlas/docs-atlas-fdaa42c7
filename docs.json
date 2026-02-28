@@ -91,7 +91,9 @@
               "api/dock",
               "api/notification",
               "api/dialog",
-              "api/context-menu"
+              "api/alert",
+              "api/context-menu",
+              "api/progress-bar"
             ]
           },
           {
@@ -109,9 +111,16 @@
             "group": "Process & Updates",
             "pages": [
               "api/child-process",
+              "api/process",
               "api/queue-worker",
               "api/updater",
               "api/settings"
+            ]
+          },
+          {
+            "group": "Application",
+            "pages": [
+              "api/app"
             ]
           }
         ]

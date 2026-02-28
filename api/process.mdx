@@ -1,0 +1,173 @@
+---
+title: Process
+description: Get information about the current process and platform
+---
+
+The Process API provides information about the current running process, including platform details and uptime.
+
+## Methods
+
+### arch()
+
+Get the CPU architecture of the current process.
+
+<ParamField path="return" type="string">
+  Returns the architecture: `arm`, `arm64`, `ia32`, `x64`, `mips`, `ppc`, or `ppc64`
+</ParamField>
+
+```php
+use Native\Desktop\Facades\Process;
+
+$arch = Process::arch();
+// "x64" or "arm64"
+```
+
+### platform()
+
+Get the operating system platform.
+
+<ParamField path="return" type="string">
+  Returns the platform: `darwin` (macOS), `win32` (Windows), or `linux`
+</ParamField>
+
+```php
+$platform = Process::platform();
+// "darwin", "win32", or "linux"
+```
+
+### uptime()
+
+Get the number of seconds the process has been running.
+
+<ParamField path="return" type="float">
+  Returns the uptime in seconds
+</ParamField>
+
+```php
+$uptime = Process::uptime();
+// 3600.5 (1 hour and 0.5 seconds)
+```
+
+### fresh()
+
+Get fresh process information as an object.
+
+<ParamField path="return" type="object">
+  Returns an object with all process properties
+</ParamField>
+
+```php
+$info = Process::fresh();
+// object with arch, platform, uptime properties
+```
+
+## Complete Examples
+
+### Platform Detection
+
+```php
+use Native\Desktop\Facades\Process;
+
+$platform = Process::platform();
+
+match ($platform) {
+    'darwin' => handleMacOS(),
+    'win32' => handleWindows(),
+    'linux' => handleLinux(),
+};
+```
+
+### Architecture-Specific Features
+
+```php
+$arch = Process::arch();
+
+if (in_array($arch, ['arm64', 'arm'])) {
+    // Enable ARM-optimized features
+    enableARMOptimizations();
+}
+```
+
+### Uptime Monitoring
+
+```php
+$uptime = Process::uptime();
+
+if ($uptime > 86400) { // 24 hours
+    Notification::new()
+        ->title('Long Session')
+        ->message('Your app has been running for over 24 hours. Consider restarting.')
+        ->show();
+}
+```
+
+### Combined Process Information
+
+```php
+// Get all process info at once
+$info = Process::fresh();
+
+log_info('Process Information', [
+    'architecture' => $info->arch,
+    'platform' => $info->platform,
+    'uptime' => $info->uptime,
+]);
+```
+
+### Platform-Specific Paths
+
+```php
+use Native\Desktop\Facades\Process;
+
+$platform = Process::platform();
+
+$configPath = match ($platform) {
+    'darwin' => '~/Library/Application Support',
+    'win32' => getenv('APPDATA'),
+    'linux' => '~/.config',
+};
+```
+
+## Platform Values
+
+The `platform()` method returns one of these values:
+
+- **darwin** - macOS
+- **win32** - Windows (both 32-bit and 64-bit)
+- **linux** - Linux
+
+## Architecture Values
+
+The `arch()` method returns one of these values:
+
+- **x64** - 64-bit Intel/AMD
+- **arm64** - 64-bit ARM (Apple Silicon, etc.)
+- **ia32** - 32-bit Intel/AMD
+- **arm** - 32-bit ARM
+- **mips** - MIPS architecture
+- **ppc** - PowerPC
+- **ppc64** - 64-bit PowerPC
+
+## Use Cases
+
+<CardGroup cols={2}>
+  <Card title="Platform Detection" icon="desktop">
+    Detect the operating system to show platform-specific UI or features
+  </Card>
+  
+  <Card title="Architecture Checks" icon="microchip">
+    Optimize code paths based on CPU architecture (ARM vs x64)
+  </Card>
+  
+  <Card title="Uptime Tracking" icon="clock">
+    Monitor how long the app has been running for analytics or warnings
+  </Card>
+  
+  <Card title="Path Resolution" icon="folder">
+    Determine correct file paths for different platforms
+  </Card>
+</CardGroup>
+
+<Note>
+The Process API provides runtime information about the Electron process, not the PHP process. This is useful for platform detection and architecture-specific optimizations.
+</Note>

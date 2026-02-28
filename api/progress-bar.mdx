@@ -1,0 +1,240 @@
+---
+title: ProgressBar
+description: Display progress indicators in the taskbar or dock
+---
+
+The ProgressBar class allows you to display progress indicators in the application's taskbar (Windows) or dock icon (macOS).
+
+## Creating a Progress Bar
+
+```php
+use Native\Desktop\ProgressBar;
+
+$progress = ProgressBar::create(100);
+$progress->start();
+
+// Update progress
+for ($i = 0; $i < 100; $i++) {
+    performWork();
+    $progress->advance();
+}
+
+$progress->finish();
+```
+
+## Methods
+
+### create()
+
+Create a new progress bar with a maximum number of steps.
+
+<ParamField path="maxSteps" type="int" required>
+  The total number of steps in the operation
+</ParamField>
+
+<ParamField path="return" type="ProgressBar">
+  Returns a new ProgressBar instance
+</ParamField>
+
+```php
+$progress = ProgressBar::create(50);
+```
+
+### start()
+
+Start the progress bar at 0%.
+
+```php
+$progress->start();
+```
+
+### advance()
+
+Advance the progress bar by the specified number of steps.
+
+<ParamField path="step" type="int" default="1">
+  Number of steps to advance (default: 1)
+</ParamField>
+
+```php
+// Advance by 1 step
+$progress->advance();
+
+// Advance by multiple steps
+$progress->advance(5);
+```
+
+### setProgress()
+
+Set the progress to a specific step.
+
+<ParamField path="step" type="int" required>
+  The current step number
+</ParamField>
+
+```php
+$progress->setProgress(25); // 50% complete if maxSteps is 50
+```
+
+### finish()
+
+Mark the progress as complete and hide the indicator.
+
+```php
+$progress->finish();
+```
+
+## Complete Examples
+
+### File Processing
+
+```php
+use Native\Desktop\ProgressBar;
+
+$files = Storage::disk('documents')->files();
+$progress = ProgressBar::create(count($files));
+$progress->start();
+
+foreach ($files as $file) {
+    processFile($file);
+    $progress->advance();
+}
+
+$progress->finish();
+```
+
+### Database Migration
+
+```php
+$records = User::all();
+$total = $records->count();
+$progress = ProgressBar::create($total);
+$progress->start();
+
+foreach ($records as $record) {
+    migrateRecord($record);
+    $progress->advance();
+}
+
+$progress->finish();
+```
+
+### Download with Progress
+
+```php
+use GuzzleHttp\Client;
+use Native\Desktop\ProgressBar;
+
+$client = new Client();
+$url = 'https://example.com/large-file.zip';
+$totalSize = 1024 * 1024 * 100; // 100MB
+
+$progress = ProgressBar::create($totalSize);
+$progress->start();
+
+$client->get($url, [
+    'sink' => $destination,
+    'progress' => function ($total, $downloaded) use ($progress) {
+        $progress->setProgress((int) $downloaded);
+    },
+]);
+
+$progress->finish();
+```
+
+### Batch Processing
+
+```php
+$batches = array_chunk($items, 100);
+$progress = ProgressBar::create(count($batches));
+$progress->start();
+
+foreach ($batches as $batch) {
+    processBatch($batch);
+    $progress->advance();
+}
+
+$progress->finish();
+```
+
+## Throttling
+
+The ProgressBar automatically throttles updates to prevent excessive rendering:
+
+- **Minimum interval**: 0.1 seconds between updates
+- **Maximum interval**: 1 second between updates
+- Updates always occur when reaching 100% completion
+
+```php
+// Even with rapid updates, the visual progress is throttled
+$progress = ProgressBar::create(10000);
+$progress->start();
+
+for ($i = 0; $i < 10000; $i++) {
+    $progress->advance(); // Visual updates are throttled
+}
+
+$progress->finish(); // Always updates immediately
+```
+
+## Platform Behavior
+
+<Tabs>
+  <Tab title="macOS">
+    Progress is shown as a bar under the dock icon.
+    
+    ```php
+    // macOS shows progress in the dock
+    $progress = ProgressBar::create(100);
+    $progress->start();
+    ```
+  </Tab>
+  
+  <Tab title="Windows">
+    Progress is shown on the taskbar button.
+    
+    ```php
+    // Windows shows progress in the taskbar
+    $progress = ProgressBar::create(100);
+    $progress->start();
+    ```
+  </Tab>
+  
+  <Tab title="Linux">
+    Support varies by desktop environment. Unity shows progress in the launcher.
+    
+    ```php
+    // Linux support depends on DE
+    $progress = ProgressBar::create(100);
+    $progress->start();
+    ```
+  </Tab>
+</Tabs>
+
+## Best Practices
+
+<Note>
+**Always call finish()**: Make sure to call `finish()` when the operation completes, even if there's an error. This removes the progress indicator.
+</Note>
+
+<Tip>
+**Use try/finally**: Wrap progress operations in try/finally blocks to ensure cleanup.
+</Tip>
+
+```php
+$progress = ProgressBar::create($total);
+$progress->start();
+
+try {
+    foreach ($items as $item) {
+        processItem($item);
+        $progress->advance();
+    }
+} finally {
+    $progress->finish();
+}
+```
+
+<Warning>
+**Don't create multiple progress bars**: Only one progress bar should be active at a time. Creating multiple instances will cause them to conflict.
+</Warning>

@@ -1,0 +1,223 @@
+---
+title: Alert
+description: Display native alert dialogs and error messages
+---
+
+The Alert API allows you to display native system alert dialogs with custom messages, buttons, and types.
+
+## Creating an Alert
+
+```php
+use Native\Desktop\Facades\Alert;
+
+Alert::new()
+    ->title('Confirm Action')
+    ->detail('Are you sure you want to continue?')
+    ->buttons(['Cancel', 'Continue'])
+    ->defaultId(1)
+    ->cancelId(0)
+    ->show('This action cannot be undone');
+```
+
+## Methods
+
+### new()
+
+Create a new alert instance.
+
+<ParamField path="return" type="Alert">
+  Returns a new Alert instance
+</ParamField>
+
+```php
+$alert = Alert::new();
+```
+
+### type()
+
+Set the alert type. Controls the icon displayed in the alert.
+
+<ParamField path="type" type="string" required>
+  The alert type: `none`, `info`, `error`, `question`, or `warning`
+</ParamField>
+
+```php
+Alert::new()
+    ->type('warning')
+    ->show('This is a warning message');
+```
+
+### title()
+
+Set the alert dialog title.
+
+<ParamField path="title" type="string" required>
+  The title text for the alert dialog
+</ParamField>
+
+```php
+Alert::new()
+    ->title('Important Notice')
+    ->show('Please read this carefully');
+```
+
+### detail()
+
+Set additional detail text for the alert.
+
+<ParamField path="detail" type="string" required>
+  Additional detail text displayed below the message
+</ParamField>
+
+```php
+Alert::new()
+    ->title('Update Available')
+    ->detail('Version 2.0 includes new features and bug fixes')
+    ->show('A new version is available');
+```
+
+### buttons()
+
+Set custom button labels for the alert.
+
+<ParamField path="buttons" type="array" required>
+  Array of button label strings
+</ParamField>
+
+```php
+Alert::new()
+    ->buttons(['Cancel', 'Save', 'Don\'t Save'])
+    ->show('Do you want to save your changes?');
+```
+
+### defaultId()
+
+Set which button is focused by default (0-indexed).
+
+<ParamField path="defaultId" type="int" required>
+  Index of the default button
+</ParamField>
+
+```php
+Alert::new()
+    ->buttons(['Cancel', 'Delete'])
+    ->defaultId(0) // Focus on "Cancel"
+    ->show('Delete this item?');
+```
+
+### cancelId()
+
+Set which button is triggered when the user presses Escape.
+
+<ParamField path="cancelId" type="int" required>
+  Index of the cancel button
+</ParamField>
+
+```php
+Alert::new()
+    ->buttons(['Cancel', 'Delete'])
+    ->cancelId(0) // Escape triggers "Cancel"
+    ->show('Delete this item?');
+```
+
+### show()
+
+Display the alert dialog with the specified message.
+
+<ParamField path="message" type="string" required>
+  The main message to display
+</ParamField>
+
+<ParamField path="return" type="int">
+  Returns the index of the button that was clicked
+</ParamField>
+
+```php
+$response = Alert::new()
+    ->buttons(['Cancel', 'Continue'])
+    ->show('Do you want to continue?');
+
+if ($response === 1) {
+    // User clicked "Continue"
+}
+```
+
+### error()
+
+Show a simple error dialog.
+
+<ParamField path="title" type="string" required>
+  The error title
+</ParamField>
+
+<ParamField path="message" type="string" required>
+  The error message
+</ParamField>
+
+<ParamField path="return" type="bool">
+  Returns true when the dialog is dismissed
+</ParamField>
+
+```php
+Alert::error(
+    'Operation Failed',
+    'Could not save the file. Please check permissions.'
+);
+```
+
+## Complete Example
+
+```php
+use Native\Desktop\Facades\Alert;
+
+// Confirmation dialog
+$result = Alert::new()
+    ->type('question')
+    ->title('Confirm Deletion')
+    ->detail('This item will be permanently deleted.')
+    ->buttons(['Cancel', 'Delete'])
+    ->defaultId(0)
+    ->cancelId(0)
+    ->show('Are you sure you want to delete this item?');
+
+if ($result === 1) {
+    // User confirmed - proceed with deletion
+    deleteItem();
+}
+
+// Simple error alert
+Alert::error(
+    'Network Error',
+    'Could not connect to the server. Please check your internet connection.'
+);
+
+// Warning with multiple options
+$response = Alert::new()
+    ->type('warning')
+    ->title('Unsaved Changes')
+    ->buttons(['Cancel', 'Don\'t Save', 'Save'])
+    ->defaultId(2)
+    ->show('Do you want to save your changes before closing?');
+
+match ($response) {
+    0 => handleCancel(),
+    1 => closeWithoutSaving(),
+    2 => saveAndClose(),
+};
+```
+
+## Alert Types
+
+The `type()` method accepts these values:
+
+- **none** - No icon
+- **info** - Information icon (ℹ️)
+- **error** - Error icon (❌)
+- **question** - Question icon (❓)
+- **warning** - Warning icon (⚠️)
+
+## Platform Notes
+
+<Note>
+The appearance of alert dialogs varies by platform (macOS, Windows, Linux). NativePHP uses the native alert system for each platform to provide a consistent user experience.
+</Note>

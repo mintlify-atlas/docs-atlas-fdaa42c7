@@ -127,9 +127,11 @@
     "Dock - macOS dock integration",
     "Notification - System notifications",
     "Dialog - File open/save dialogs",
+    "Alert - Native alert dialogs",
     "Clipboard - Clipboard operations",
     "GlobalShortcut - Keyboard shortcuts",
     "ChildProcess - Process management",
+    "Process - Process and platform information",
     "QueueWorker - Background job processing",
     "Updater - Auto-update functionality",
     "Shell - Shell integration",
@@ -137,6 +139,8 @@
     "Screen - Display information",
     "PowerMonitor - Power state monitoring",
     "Settings - App settings storage",
-    "ContextMenu - Context menu creation"
+    "ContextMenu - Context menu creation",
+    "ProgressBar - Taskbar/dock progress indicators",
+    "App - Application control and information"
   ]
 }

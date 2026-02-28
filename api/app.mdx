@@ -1,0 +1,314 @@
+---
+title: App
+description: Control application behavior and access app-level information
+---
+
+The App API provides methods to control application behavior, access locale information, manage recent documents, and configure app-level settings.
+
+## Application Control
+
+### quit()
+
+Quit the application gracefully.
+
+```php
+use Native\Desktop\Facades\App;
+
+App::quit();
+```
+
+### relaunch()
+
+Restart the application.
+
+```php
+App::relaunch();
+```
+
+### focus()
+
+Bring the application to focus.
+
+```php
+App::focus();
+```
+
+### hide()
+
+Hide the application (macOS).
+
+```php
+App::hide();
+```
+
+### isHidden()
+
+Check if the application is currently hidden.
+
+<ParamField path="return" type="bool">
+  Returns true if the application is hidden
+</ParamField>
+
+```php
+if (App::isHidden()) {
+    App::focus();
+}
+```
+
+## Locale and Internationalization
+
+### getLocale()
+
+Get the current application locale.
+
+<ParamField path="return" type="string">
+  Returns the locale string (e.g., "en-US")
+</ParamField>
+
+```php
+$locale = App::getLocale(); // "en-US"
+```
+
+### getLocaleCountryCode()
+
+Get the country code from the current locale.
+
+<ParamField path="return" type="string">
+  Returns the country code (e.g., "US")
+</ParamField>
+
+```php
+$country = App::getLocaleCountryCode(); // "US"
+```
+
+### getSystemLocale()
+
+Get the system-level locale.
+
+<ParamField path="return" type="string">
+  Returns the system locale string
+</ParamField>
+
+```php
+$systemLocale = App::getSystemLocale();
+```
+
+## Application Information
+
+### version()
+
+Get the current application version.
+
+<ParamField path="return" type="string">
+  Returns the version string from your config
+</ParamField>
+
+```php
+$version = App::version(); // "1.0.0"
+```
+
+### isRunningBundled()
+
+Check if the application is running as a bundled executable.
+
+<ParamField path="return" type="bool">
+  Returns true if running as a bundled app, false in development
+</ParamField>
+
+```php
+if (App::isRunningBundled()) {
+    // Production mode
+} else {
+    // Development mode
+}
+```
+
+## Badge and Indicators
+
+### badgeCount()
+
+Get or set the badge count on the app icon (macOS and Windows).
+
+<ParamField path="count" type="int|null">
+  The badge count to set, or null to get the current count
+</ParamField>
+
+<ParamField path="return" type="int">
+  Returns the current badge count
+</ParamField>
+
+```php
+// Set badge count
+App::badgeCount(5);
+
+// Get current badge count
+$count = App::badgeCount(); // 5
+
+// Clear badge
+App::badgeCount(0);
+```
+
+## Recent Documents
+
+### addRecentDocument()
+
+Add a document to the recent documents list.
+
+<ParamField path="path" type="string" required>
+  Absolute path to the document file
+</ParamField>
+
+```php
+App::addRecentDocument('/path/to/document.pdf');
+```
+
+### recentDocuments()
+
+Get the list of recent documents.
+
+<ParamField path="return" type="array">
+  Returns an array of document paths
+</ParamField>
+
+```php
+$documents = App::recentDocuments();
+// ['path/to/doc1.pdf', 'path/to/doc2.txt']
+```
+
+### clearRecentDocuments()
+
+Clear all recent documents.
+
+```php
+App::clearRecentDocuments();
+```
+
+## Startup Behavior
+
+### openAtLogin()
+
+Get or set whether the app should open at system login.
+
+<ParamField path="open" type="bool|null">
+  True to enable, false to disable, null to get current setting
+</ParamField>
+
+<ParamField path="return" type="bool">
+  Returns the current or new setting
+</ParamField>
+
+```php
+// Enable open at login
+App::openAtLogin(true);
+
+// Disable open at login
+App::openAtLogin(false);
+
+// Check current setting
+$opensAtLogin = App::openAtLogin(); // true or false
+```
+
+## Emoji Panel
+
+### isEmojiPanelSupported()
+
+Check if the emoji panel is supported on this platform.
+
+<ParamField path="return" type="bool">
+  Returns true if emoji panel is supported
+</ParamField>
+
+```php
+if (App::isEmojiPanelSupported()) {
+    // Show emoji picker button
+}
+```
+
+### showEmojiPanel()
+
+Show the system emoji picker panel.
+
+```php
+App::showEmojiPanel();
+```
+
+## Complete Examples
+
+### Application Lifecycle
+
+```php
+use Native\Desktop\Facades\App;
+
+// Graceful shutdown with confirmation
+if ($hasUnsavedChanges) {
+    $result = Alert::new()
+        ->buttons(['Cancel', 'Quit'])
+        ->show('You have unsaved changes. Quit anyway?');
+    
+    if ($result === 1) {
+        App::quit();
+    }
+} else {
+    App::quit();
+}
+
+// Restart after update
+if ($updateInstalled) {
+    App::relaunch();
+}
+```
+
+### Locale-Aware Features
+
+```php
+// Display content based on user's locale
+$locale = App::getLocale();
+$country = App::getLocaleCountryCode();
+
+// Use for date formatting, currency, etc.
+if ($country === 'US') {
+    $dateFormat = 'MM/DD/YYYY';
+} else {
+    $dateFormat = 'DD/MM/YYYY';
+}
+```
+
+### Recent Documents Menu
+
+```php
+// When user opens a file
+App::addRecentDocument($filePath);
+
+// Build recent files menu
+$recentDocs = App::recentDocuments();
+
+foreach ($recentDocs as $doc) {
+    Menu::add(
+        MenuItem::link(basename($doc))
+            ->url("file://" . $doc)
+    );
+}
+```
+
+### Unread Count Badge
+
+```php
+// Show unread messages count
+$unreadCount = Message::where('read', false)->count();
+App::badgeCount($unreadCount);
+
+// Clear when all messages are read
+if ($unreadCount === 0) {
+    App::badgeCount(0);
+}
+```
+
+## Platform Notes
+
+<Note>
+**macOS**: All features are fully supported including hide(), badgeCount(), and emoji panel.
+
+**Windows**: Badge count shows in taskbar. hide() and emoji panel have limited support.
+
+**Linux**: Feature support varies by desktop environment.
+</Note>
