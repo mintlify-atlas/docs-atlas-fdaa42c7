@@ -1,0 +1,382 @@
+---
+title: Child Processes
+description: Manage background processes for PHP scripts, Node.js, and system commands
+---
+
+NativePHP Desktop provides a powerful API for spawning and managing child processes, allowing you to run background tasks, execute system commands, and manage long-running processes.
+
+## Starting Processes
+
+### PHP Processes
+
+Run a PHP script as a child process:
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+$process = ChildProcess::php(
+    cmd: 'worker.php',
+    alias: 'background-worker'
+);
+```
+
+With custom environment variables:
+
+```php
+$process = ChildProcess::php(
+    cmd: 'worker.php',
+    alias: 'background-worker',
+    env: [
+        'WORKER_TYPE' => 'email',
+        'QUEUE_NAME' => 'emails'
+    ]
+);
+```
+
+### Artisan Commands
+
+Run Laravel Artisan commands:
+
+```php
+$process = ChildProcess::artisan(
+    cmd: 'queue:work',
+    alias: 'queue-worker'
+);
+```
+
+With arguments:
+
+```php
+$process = ChildProcess::artisan(
+    cmd: ['queue:work', '--queue=high', '--tries=3'],
+    alias: 'queue-worker'
+);
+```
+
+### Node.js Processes
+
+Run Node.js scripts:
+
+```php
+$process = ChildProcess::node(
+    cmd: 'server.js',
+    alias: 'node-server',
+    env: ['PORT' => '3000']
+);
+```
+
+### System Commands
+
+Execute any system command:
+
+```php
+$process = ChildProcess::start(
+    cmd: ['ffmpeg', '-i', 'input.mp4', 'output.mp4'],
+    alias: 'video-converter',
+    cwd: storage_path('app/videos')
+);
+```
+
+## Process Management
+
+### Getting Process Information
+
+Retrieve a process by its alias:
+
+```php
+$process = ChildProcess::get('queue-worker');
+
+if ($process) {
+    $pid = $process->pid;
+    $alias = $process->alias;
+    $cmd = $process->cmd;
+}
+```
+
+Get all running processes:
+
+```php
+$processes = ChildProcess::all();
+
+foreach ($processes as $alias => $process) {
+    echo "{$alias}: PID {$process->pid}\n";
+}
+```
+
+### Stopping Processes
+
+Stop a specific process:
+
+```php
+ChildProcess::stop('queue-worker');
+```
+
+Or stop from the process instance:
+
+```php
+$process = ChildProcess::get('queue-worker');
+$process->stop();
+```
+
+### Restarting Processes
+
+Restart a process with its original configuration:
+
+```php
+$process = ChildProcess::restart('queue-worker');
+```
+
+## Persistent Processes
+
+Mark a process as persistent so it automatically restarts if it crashes:
+
+```php
+$process = ChildProcess::artisan(
+    cmd: 'queue:work',
+    alias: 'queue-worker',
+    persistent: true
+);
+```
+
+<Note>
+Persistent processes will automatically restart if they exit unexpectedly, making them ideal for queue workers and other critical background tasks.
+</Note>
+
+## Process Communication
+
+Send messages to a running process:
+
+```php
+$process = ChildProcess::get('background-worker');
+$process->message('process-item-123');
+```
+
+## PHP Configuration
+
+Customize PHP ini settings for PHP processes:
+
+```php
+$process = ChildProcess::php(
+    cmd: 'memory-intensive-task.php',
+    alias: 'heavy-worker',
+    iniSettings: [
+        'memory_limit' => '512M',
+        'max_execution_time' => '300'
+    ]
+);
+```
+
+## Working Directory
+
+Set the working directory for a process:
+
+```php
+$process = ChildProcess::start(
+    cmd: ['npm', 'run', 'build'],
+    alias: 'npm-build',
+    cwd: base_path('resources/frontend')
+);
+```
+
+## Practical Examples
+
+<CodeGroup>
+
+```php Queue Worker Manager
+use Native\Desktop\Facades\ChildProcess;
+
+class QueueManager
+{
+    public function startWorker($queue = 'default')
+    {
+        $alias = "queue-worker-{$queue}";
+        
+        // Check if already running
+        if (ChildProcess::get($alias)) {
+            return;
+        }
+
+        ChildProcess::artisan(
+            cmd: ['queue:work', "--queue={$queue}"],
+            alias: $alias,
+            persistent: true,
+            iniSettings: [
+                'memory_limit' => '256M'
+            ]
+        );
+    }
+
+    public function stopWorker($queue = 'default')
+    {
+        ChildProcess::stop("queue-worker-{$queue}");
+    }
+
+    public function restartWorker($queue = 'default')
+    {
+        ChildProcess::restart("queue-worker-{$queue}");
+    }
+
+    public function getAllWorkers()
+    {
+        $all = ChildProcess::all();
+        
+        return array_filter($all, function ($alias) {
+            return str_starts_with($alias, 'queue-worker-');
+        }, ARRAY_FILTER_USE_KEY);
+    }
+}
+```
+
+```php Task Scheduler
+use Native\Desktop\Facades\ChildProcess;
+
+class TaskScheduler
+{
+    public function runScheduledTask($taskId)
+    {
+        $task = Task::find($taskId);
+        
+        $process = ChildProcess::php(
+            cmd: ['tasks/runner.php', $taskId],
+            alias: "task-{$taskId}",
+            env: [
+                'TASK_ID' => $taskId,
+                'TASK_TYPE' => $task->type
+            ],
+            iniSettings: [
+                'memory_limit' => $task->memory_limit,
+                'max_execution_time' => $task->timeout
+            ]
+        );
+
+        $task->update([
+            'pid' => $process->pid,
+            'status' => 'running'
+        ]);
+    }
+
+    public function stopTask($taskId)
+    {
+        ChildProcess::stop("task-{$taskId}");
+        
+        Task::find($taskId)->update([
+            'status' => 'stopped'
+        ]);
+    }
+}
+```
+
+```php File Watcher
+use Native\Desktop\Facades\ChildProcess;
+
+class FileWatcherService
+{
+    public function startWatching($directory)
+    {
+        ChildProcess::node(
+            cmd: ['watch-files.js', $directory],
+            alias: 'file-watcher',
+            persistent: true,
+            env: [
+                'WATCH_DIR' => $directory
+            ]
+        );
+    }
+
+    public function stopWatching()
+    {
+        ChildProcess::stop('file-watcher');
+    }
+
+    public function isWatching()
+    {
+        return ChildProcess::get('file-watcher') !== null;
+    }
+}
+```
+
+```php Background Export
+use Native\Desktop\Facades\ChildProcess;
+
+class ExportService
+{
+    public function exportLargeDataset($exportId)
+    {
+        $export = Export::find($exportId);
+        
+        $process = ChildProcess::artisan(
+            cmd: ['export:process', $exportId],
+            alias: "export-{$exportId}",
+            env: [
+                'EXPORT_FORMAT' => $export->format,
+                'EXPORT_COMPRESSION' => $export->compression
+            ],
+            iniSettings: [
+                'memory_limit' => '1G',
+                'max_execution_time' => '1800'
+            ]
+        );
+
+        return $process;
+    }
+
+    public function getExportProgress($exportId)
+    {
+        $process = ChildProcess::get("export-{$exportId}");
+        
+        if (!$process) {
+            return null;
+        }
+
+        return [
+            'pid' => $process->pid,
+            'running' => true
+        ];
+    }
+
+    public function cancelExport($exportId)
+    {
+        ChildProcess::stop("export-{$exportId}");
+    }
+}
+```
+
+</CodeGroup>
+
+## Process Properties
+
+Each process instance has the following properties:
+
+- `pid` - Process ID
+- `alias` - Unique identifier for the process
+- `cmd` - Command array that was executed
+- `cwd` - Working directory
+- `env` - Environment variables
+- `persistent` - Whether the process auto-restarts
+- `iniSettings` - PHP ini settings (PHP processes only)
+
+## Best Practices
+
+<Steps>
+
+### Use Descriptive Aliases
+
+Give your processes clear, descriptive aliases that make them easy to identify and manage.
+
+### Monitor Process Health
+
+Regularly check if critical processes are running and restart them if needed.
+
+### Clean Up Processes
+
+Stop processes when they're no longer needed to free up system resources.
+
+### Handle Process Failures
+
+Implement error handling and logging to track when processes fail or exit unexpectedly.
+
+</Steps>
+
+<Warning>
+Be careful with persistent processes. If a process fails repeatedly, it will continue to restart, which could impact system performance.
+</Warning>

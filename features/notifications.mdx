@@ -1,0 +1,163 @@
+---
+title: System Notifications
+description: Display native system notifications with actions, replies, and custom sounds
+---
+
+NativePHP Desktop allows you to display native system notifications that integrate seamlessly with the user's operating system.
+
+## Basic Usage
+
+Create and display a simple notification:
+
+```php
+use Native\Desktop\Facades\Notification;
+
+Notification::new()
+    ->title('Task Completed')
+    ->message('Your export has finished successfully.')
+    ->show();
+```
+
+## Notification Options
+
+### Title and Message
+
+Set the notification title and body content:
+
+```php
+Notification::new()
+    ->title('New Message')
+    ->message('You have received a new message from John.')
+    ->show();
+```
+
+### Sound
+
+Add a sound to your notification:
+
+```php
+Notification::new()
+    ->title('Alert')
+    ->message('This notification will play a sound.')
+    ->sound('default')
+    ->show();
+```
+
+Or create a silent notification:
+
+```php
+Notification::new()
+    ->title('Background Update')
+    ->message('Your app has been updated.')
+    ->silent()
+    ->show();
+```
+
+## Interactive Notifications
+
+### Action Buttons
+
+Add action buttons to your notifications:
+
+```php
+Notification::new()
+    ->title('New Comment')
+    ->message('Someone commented on your post.')
+    ->addAction('View')
+    ->addAction('Dismiss')
+    ->event('notification.comment')
+    ->show();
+```
+
+### Reply Field
+
+Allow users to reply directly from the notification:
+
+```php
+Notification::new()
+    ->title('Quick Reply')
+    ->message('Respond to this message')
+    ->hasReply('Type your reply...')
+    ->event('notification.reply')
+    ->show();
+```
+
+## Handling Notification Events
+
+Use the `event()` method to specify which event should be fired when the user interacts with the notification:
+
+```php
+Notification::new()
+    ->title('Download Complete')
+    ->message('Your file is ready.')
+    ->event('download.complete')
+    ->show();
+```
+
+Then listen for the event in your Laravel application:
+
+```php
+use Native\Desktop\Events\Notification\NotificationClicked;
+
+Event::listen(function (NotificationClicked $event) {
+    // Handle notification click
+    $reference = $event->reference;
+});
+```
+
+## Notification References
+
+You can assign a reference to track specific notifications:
+
+```php
+$notification = Notification::new()
+    ->reference('download-123')
+    ->title('Download Started')
+    ->message('Downloading file...')
+    ->show();
+
+// The reference is also available after showing
+$reference = $notification->reference;
+```
+
+<Note>
+The notification reference is automatically generated if not explicitly set, and is returned after calling `show()`.
+</Note>
+
+## Complete Example
+
+Here's a comprehensive example combining multiple features:
+
+```php
+use Native\Desktop\Facades\Notification;
+
+class NotificationService
+{
+    public function notifyNewOrder($order)
+    {
+        Notification::new()
+            ->reference("order-{$order->id}")
+            ->title('New Order Received')
+            ->message("Order #{$order->id} from {$order->customer->name}")
+            ->addAction('View Order')
+            ->addAction('Print Receipt')
+            ->event('order.received')
+            ->sound('default')
+            ->show();
+    }
+
+    public function requestFeedback()
+    {
+        Notification::new()
+            ->title('How are we doing?')
+            ->message('Please share your feedback')
+            ->hasReply('Type your feedback here...')
+            ->event('feedback.submitted')
+            ->show();
+    }
+}
+```
+
+<Warning>
+Notification permissions may need to be granted by the user on first use, depending on the operating system.
+</Warning>

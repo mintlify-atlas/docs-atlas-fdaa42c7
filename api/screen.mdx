@@ -1,0 +1,280 @@
+---
+title: Screen
+description: Access information about displays and screen layout
+---
+
+The Screen API provides methods to retrieve information about connected displays, monitor cursor position, and get display metrics.
+
+## Usage
+
+```php
+use Native\Desktop\Facades\Screen;
+
+// Get cursor position
+$position = Screen::cursorPosition();
+
+// Get all displays
+$displays = Screen::displays();
+
+// Get primary display
+$primary = Screen::primary();
+
+// Get active display (where cursor is)
+$active = Screen::active();
+```
+
+## Methods
+
+### cursorPosition()
+
+Get the current position of the mouse cursor.
+
+```php
+Screen::cursorPosition(): object
+```
+
+<ResponseField name="return" type="object">
+  Returns an object containing:
+  - `x` (int): The X coordinate of the cursor
+  - `y` (int): The Y coordinate of the cursor
+</ResponseField>
+
+**Example:**
+
+```php
+$position = Screen::cursorPosition();
+echo "Cursor at: {$position->x}, {$position->y}";
+```
+
+### displays()
+
+Get information about all connected displays.
+
+```php
+Screen::displays(): array
+```
+
+<ResponseField name="return" type="array">
+  Returns an array of display objects. Each display contains:
+  - `id` (int): Unique display identifier
+  - `bounds` (object): Display bounds with `x`, `y`, `width`, `height`
+  - `workArea` (object): Usable area (excludes taskbars) with `x`, `y`, `width`, `height`
+  - `scaleFactor` (float): Display scale factor (e.g., 2.0 for Retina)
+  - `rotation` (int): Display rotation in degrees (0, 90, 180, or 270)
+  - `internal` (bool): Whether this is an internal display
+</ResponseField>
+
+**Example:**
+
+```php
+$displays = Screen::displays();
+
+foreach ($displays as $display) {
+    echo "Display {$display['id']}: ";
+    echo "{$display['bounds']['width']}x{$display['bounds']['height']}\n";
+}
+```
+
+### primary()
+
+Get information about the primary display.
+
+```php
+Screen::primary(): array
+```
+
+<ResponseField name="return" type="array">
+  Returns the primary display object with the same structure as displays().
+</ResponseField>
+
+**Example:**
+
+```php
+$primary = Screen::primary();
+$width = $primary['bounds']['width'];
+$height = $primary['bounds']['height'];
+
+echo "Primary display: {$width}x{$height}";
+```
+
+### active()
+
+Get information about the display where the mouse cursor is currently located.
+
+```php
+Screen::active(): array
+```
+
+<ResponseField name="return" type="array">
+  Returns the active display object with the same structure as displays().
+</ResponseField>
+
+**Example:**
+
+```php
+$active = Screen::active();
+echo "Active display scale: {$active['scaleFactor']}";
+```
+
+### getCenterOfActiveScreen()
+
+Get the center coordinates of the display where the mouse cursor is currently located.
+
+```php
+Screen::getCenterOfActiveScreen(): array<string, int>
+```
+
+<ResponseField name="return" type="array">
+  Returns an array with:
+  - `x` (int): The X coordinate of the screen center
+  - `y` (int): The Y coordinate of the screen center
+</ResponseField>
+
+**Example:**
+
+```php
+$center = Screen::getCenterOfActiveScreen();
+
+// Position a window at the center of the active screen
+Window::open()
+    ->position($center['x'], $center['y'])
+    ->show();
+```
+
+## Complete Examples
+
+### Multi-Monitor Support
+
+```php
+use Native\Desktop\Facades\Screen;
+use Native\Desktop\Facades\Window;
+
+class DisplayManager
+{
+    public function openOnEachDisplay()
+    {
+        $displays = Screen::displays();
+        
+        foreach ($displays as $index => $display) {
+            $bounds = $display['bounds'];
+            
+            // Center window on each display
+            $x = $bounds['x'] + ($bounds['width'] / 2) - 400;
+            $y = $bounds['y'] + ($bounds['height'] / 2) - 300;
+            
+            Window::open("window-{$index}")
+                ->url(route('dashboard'))
+                ->width(800)
+                ->height(600)
+                ->position($x, $y)
+                ->show();
+        }
+    }
+}
+```
+
+### Adaptive Window Sizing
+
+```php
+use Native\Desktop\Facades\Screen;
+use Native\Desktop\Facades\Window;
+
+class WindowManager
+{
+    public function openAdaptiveWindow()
+    {
+        $primary = Screen::primary();
+        $bounds = $primary['bounds'];
+        $scaleFactor = $primary['scaleFactor'];
+        
+        // Use 80% of screen width, accounting for scale factor
+        $width = (int) ($bounds['width'] * 0.8 / $scaleFactor);
+        $height = (int) ($bounds['height'] * 0.8 / $scaleFactor);
+        
+        Window::open('main')
+            ->width($width)
+            ->height($height)
+            ->center()
+            ->show();
+    }
+}
+```
+
+### Cursor Tracking
+
+```php
+use Native\Desktop\Facades\Screen;
+
+class CursorTracker
+{
+    public function getCurrentDisplay()
+    {
+        $cursor = Screen::cursorPosition();
+        $displays = Screen::displays();
+        
+        foreach ($displays as $display) {
+            $bounds = $display['bounds'];
+            
+            if ($cursor->x >= $bounds['x'] && 
+                $cursor->x < $bounds['x'] + $bounds['width'] &&
+                $cursor->y >= $bounds['y'] && 
+                $cursor->y < $bounds['y'] + $bounds['height']) {
+                
+                return $display;
+            }
+        }
+        
+        // Fallback to primary
+        return Screen::primary();
+    }
+    
+    public function isOnRetina()
+    {
+        $active = Screen::active();
+        return $active['scaleFactor'] > 1.0;
+    }
+}
+```
+
+### Display Information Panel
+
+```php
+use Native\Desktop\Facades\Screen;
+
+class SystemInfo
+{
+    public function getDisplayInfo()
+    {
+        $displays = Screen::displays();
+        $primary = Screen::primary();
+        $active = Screen::active();
+        
+        return [
+            'total_displays' => count($displays),
+            'primary_resolution' => [
+                'width' => $primary['bounds']['width'],
+                'height' => $primary['bounds']['height'],
+            ],
+            'primary_scale' => $primary['scaleFactor'],
+            'active_display_id' => $active['id'],
+            'displays' => array_map(function ($display) {
+                return [
+                    'id' => $display['id'],
+                    'resolution' => "{$display['bounds']['width']}x{$display['bounds']['height']}",
+                    'scale' => $display['scaleFactor'],
+                    'internal' => $display['internal'],
+                    'rotation' => $display['rotation'],
+                ];
+            }, $displays),
+        ];
+    }
+}
+```
+
+## Notes
+
+- Display coordinates can be negative in multi-monitor setups
+- The `workArea` excludes OS UI elements like taskbars and docks
+- Scale factors are typically 1.0 (standard) or 2.0 (Retina/HiDPI)
+- Display IDs may change when monitors are connected/disconnected
+- Use the `bounds` property for absolute positioning across multiple displays

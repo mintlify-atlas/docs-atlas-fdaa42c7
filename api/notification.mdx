@@ -1,0 +1,281 @@
+---
+title: Notification
+description: Display native system notifications in NativePHP Desktop
+---
+
+The Notification API allows you to display native system notifications with support for custom titles, messages, actions, replies, and sounds.
+
+## Basic Usage
+
+```php
+use Native\Desktop\Notification;
+
+Notification::new()
+    ->title('New Message')
+    ->message('You have a new message from John')
+    ->show();
+```
+
+## Creating Notifications
+
+### new
+
+Create a new notification instance.
+
+<ResponseField name="return" type="Notification">
+  Returns a new Notification instance
+</ResponseField>
+
+```php
+$notification = Notification::new();
+```
+
+## Configuration Methods
+
+### title
+
+Set the notification title.
+
+<ParamField path="title" type="string" required>
+  The title text for the notification
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Notification instance for method chaining
+</ResponseField>
+
+```php
+$notification->title('New Message');
+```
+
+### message
+
+Set the notification body text.
+
+<ParamField path="body" type="string" required>
+  The body text for the notification
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Notification instance for method chaining
+</ResponseField>
+
+```php
+$notification->message('You have a new message from John');
+```
+
+### reference
+
+Set a unique reference identifier for the notification.
+
+<ParamField path="reference" type="string" required>
+  A unique identifier for this notification
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Notification instance for method chaining
+</ResponseField>
+
+```php
+$notification->reference('msg-' . $message->id);
+```
+
+### event
+
+Set a Laravel event to dispatch when the notification is clicked.
+
+<ParamField path="event" type="string" required>
+  The event identifier or class name
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Notification instance for method chaining
+</ResponseField>
+
+```php
+$notification->event('notification.clicked');
+```
+
+### sound
+
+Set a custom sound for the notification.
+
+<ParamField path="sound" type="string" required>
+  The name of the sound to play
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Notification instance for method chaining
+</ResponseField>
+
+```php
+$notification->sound('default');
+```
+
+### silent
+
+Make the notification silent (no sound).
+
+<ParamField path="silent" type="bool" default="true">
+  Whether the notification should be silent
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Notification instance for method chaining
+</ResponseField>
+
+```php
+$notification->silent();
+// or
+$notification->silent(false);
+```
+
+### hasReply
+
+Enable a reply field in the notification.
+
+<ParamField path="placeholder" type="string" default="''">
+  Placeholder text for the reply field
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Notification instance for method chaining
+</ResponseField>
+
+```php
+$notification->hasReply('Type your reply...');
+```
+
+### addAction
+
+Add an action button to the notification.
+
+<ParamField path="label" type="string" required>
+  The text label for the action button
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Notification instance for method chaining
+</ResponseField>
+
+```php
+$notification
+    ->addAction('View')
+    ->addAction('Dismiss');
+```
+
+### show
+
+Display the notification.
+
+<ResponseField name="return" type="self">
+  Returns the Notification instance with the reference property populated
+</ResponseField>
+
+```php
+$notification->show();
+```
+
+## Properties
+
+### reference
+
+After calling `show()`, the `reference` property will be automatically populated if not set manually.
+
+```php
+$notification = Notification::new()
+    ->title('Test')
+    ->message('Hello')
+    ->show();
+
+$id = $notification->reference;
+```
+
+## Complete Examples
+
+### Simple Notification
+
+```php
+use Native\Desktop\Notification;
+
+Notification::new()
+    ->title('Task Complete')
+    ->message('Your export has finished successfully')
+    ->show();
+```
+
+### Notification with Actions
+
+```php
+use Native\Desktop\Notification;
+
+Notification::new()
+    ->title('New Message')
+    ->message('You have a new message from John')
+    ->addAction('View')
+    ->addAction('Mark as Read')
+    ->event('message.received')
+    ->show();
+```
+
+### Notification with Reply
+
+```php
+use Native\Desktop\Notification;
+
+Notification::new()
+    ->title('Quick Reply')
+    ->message('John sent you a message')
+    ->hasReply('Type your reply...')
+    ->event('message.reply')
+    ->show();
+```
+
+### Silent Notification with Reference
+
+```php
+use Native\Desktop\Notification;
+
+$notification = Notification::new()
+    ->reference('update-' . time())
+    ->title('Update Available')
+    ->message('A new version is ready to install')
+    ->silent()
+    ->addAction('Install')
+    ->addAction('Later')
+    ->show();
+```
+
+### Custom Sound Notification
+
+```php
+use Native\Desktop\Notification;
+
+Notification::new()
+    ->title('Alert')
+    ->message('This notification has a custom sound')
+    ->sound('Glass')
+    ->event('alert.sound')
+    ->show();
+```
+
+## Handling Notification Events
+
+When a user interacts with a notification, you can handle it using Laravel events:
+
+```php
+use Native\Desktop\Events\Notifications\NotificationClicked;
+
+class NotificationClickedListener
+{
+    public function handle(NotificationClicked $event)
+    {
+        // Access notification data
+        $reference = $event->reference;
+        $action = $event->action;
+        $reply = $event->reply;
+        
+        // Handle the interaction
+    }
+}
+```

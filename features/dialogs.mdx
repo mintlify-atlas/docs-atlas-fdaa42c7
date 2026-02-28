@@ -1,0 +1,243 @@
+---
+title: File Dialogs
+description: Open native file and directory selection dialogs
+---
+
+NativePHP Desktop provides a fluent API for working with native file dialogs, allowing users to select files and directories or choose save locations.
+
+## Opening Files
+
+### Single File Selection
+
+Open a dialog to select a single file:
+
+```php
+use Native\Desktop\Facades\Dialog;
+
+$filePath = Dialog::new()
+    ->title('Select a file')
+    ->open();
+
+if ($filePath) {
+    // User selected a file
+    $contents = file_get_contents($filePath);
+}
+```
+
+### Multiple File Selection
+
+Allow users to select multiple files:
+
+```php
+$files = Dialog::new()
+    ->title('Select files to import')
+    ->multiple()
+    ->open();
+
+foreach ($files as $file) {
+    // Process each file
+}
+```
+
+## Selecting Directories
+
+Open a dialog to select a folder:
+
+```php
+$directory = Dialog::new()
+    ->title('Choose output directory')
+    ->folders()
+    ->open();
+```
+
+Allow multiple folder selection:
+
+```php
+$directories = Dialog::new()
+    ->folders()
+    ->multiple()
+    ->open();
+```
+
+## File Filters
+
+Restrict file selection to specific types:
+
+```php
+$imagePath = Dialog::new()
+    ->title('Select an image')
+    ->filter('Images', ['jpg', 'png', 'gif', 'webp'])
+    ->open();
+```
+
+Add multiple filters:
+
+```php
+$filePath = Dialog::new()
+    ->filter('Documents', ['pdf', 'doc', 'docx'])
+    ->filter('Spreadsheets', ['xls', 'xlsx', 'csv'])
+    ->filter('All Files', ['*'])
+    ->open();
+```
+
+## Save Dialogs
+
+Open a save dialog to let users choose where to save a file:
+
+```php
+$savePath = Dialog::new()
+    ->title('Save Export')
+    ->button('Save')
+    ->defaultPath(storage_path('exports/data.csv'))
+    ->save();
+
+if ($savePath) {
+    file_put_contents($savePath, $data);
+}
+```
+
+## Dialog Customization
+
+### Default Path
+
+Set the initial directory or file path:
+
+```php
+Dialog::new()
+    ->defaultPath('/Users/username/Documents')
+    ->open();
+```
+
+### Custom Button Label
+
+Change the default button text:
+
+```php
+Dialog::new()
+    ->button('Choose File')
+    ->open();
+```
+
+### Show Hidden Files
+
+Allow selection of hidden files:
+
+```php
+Dialog::new()
+    ->withHiddenFiles()
+    ->open();
+```
+
+### Don't Resolve Symlinks
+
+Prevent automatic symlink resolution:
+
+```php
+Dialog::new()
+    ->dontResolveSymlinks()
+    ->open();
+```
+
+## Sheet Dialogs (macOS)
+
+On macOS, display the dialog as a sheet attached to a window:
+
+```php
+use Native\Desktop\Facades\Window;
+
+$file = Dialog::new()
+    ->asSheet() // Attaches to current window
+    ->open();
+
+// Or attach to a specific window
+$file = Dialog::new()
+    ->asSheet($windowId)
+    ->open();
+```
+
+<Note>
+Sheet dialogs are modal to the window they're attached to, while standalone dialogs are modal to the entire application.
+</Note>
+
+## Advanced Configuration
+
+### Custom Properties
+
+Set custom dialog properties directly:
+
+```php
+Dialog::new()
+    ->properties([
+        'openFile',
+        'multiSelections',
+        'showHiddenFiles'
+    ])
+    ->open();
+```
+
+## Complete Examples
+
+<CodeGroup>
+
+```php Image Import
+use Native\Desktop\Facades\Dialog;
+
+class ImageImporter
+{
+    public function importImages()
+    {
+        $images = Dialog::new()
+            ->title('Select Images to Import')
+            ->filter('Images', ['jpg', 'jpeg', 'png', 'gif', 'webp'])
+            ->multiple()
+            ->defaultPath(storage_path('imports'))
+            ->open();
+
+        if (empty($images)) {
+            return;
+        }
+
+        foreach ($images as $imagePath) {
+            $this->processImage($imagePath);
+        }
+    }
+
+    protected function processImage($path)
+    {
+        // Process the image
+    }
+}
+```
+
+```php Export Dialog
+use Native\Desktop\Facades\Dialog;
+
+class DataExporter
+{
+    public function exportToCSV($data)
+    {
+        $savePath = Dialog::new()
+            ->title('Export Data')
+            ->button('Export')
+            ->filter('CSV Files', ['csv'])
+            ->filter('All Files', ['*'])
+            ->defaultPath(storage_path('exports/data.csv'))
+            ->save();
+
+        if ($savePath) {
+            $csv = $this->generateCSV($data);
+            file_put_contents($savePath, $csv);
+            
+            return true;
+        }
+
+        return false;
+    }
+}
+```
+
+</CodeGroup>
+
+<Warning>
+Dialog methods return `null` if the user cancels the dialog. Always check the return value before proceeding.
+</Warning>

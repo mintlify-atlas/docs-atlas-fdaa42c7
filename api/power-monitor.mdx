@@ -1,0 +1,308 @@
+---
+title: PowerMonitor
+description: Monitor system power state and battery status
+---
+
+The PowerMonitor API allows you to monitor the system's power state, including idle time, battery status, and thermal state.
+
+## Usage
+
+```php
+use Native\Desktop\Facades\PowerMonitor;
+
+// Check if on battery power
+$onBattery = PowerMonitor::isOnBatteryPower();
+
+// Get system idle time
+$idleSeconds = PowerMonitor::getSystemIdleTime();
+
+// Check idle state
+$idleState = PowerMonitor::getSystemIdleState(60);
+
+// Get thermal state
+$thermalState = PowerMonitor::getCurrentThermalState();
+```
+
+## Methods
+
+### getSystemIdleState()
+
+Check if the system is idle, locked, or active based on a threshold.
+
+```php
+PowerMonitor::getSystemIdleState(int $threshold): \Native\Desktop\Enums\SystemIdleStatesEnum
+```
+
+<ParamField path="threshold" type="int" required>
+  The idle time threshold in seconds. The system is considered idle if no user input has occurred for this duration.
+</ParamField>
+
+<ResponseField name="return" type="SystemIdleStatesEnum">
+  Returns one of:
+  - `SystemIdleStatesEnum::ACTIVE` - User is actively using the system
+  - `SystemIdleStatesEnum::IDLE` - System has been idle longer than the threshold
+  - `SystemIdleStatesEnum::LOCKED` - System is locked (screensaver or lock screen)
+  - `SystemIdleStatesEnum::UNKNOWN` - State could not be determined
+</ResponseField>
+
+**Example:**
+
+```php
+use Native\Desktop\Enums\SystemIdleStatesEnum;
+
+// Check if idle for more than 5 minutes
+$state = PowerMonitor::getSystemIdleState(300);
+
+if ($state === SystemIdleStatesEnum::IDLE) {
+    // Pause background tasks
+} elseif ($state === SystemIdleStatesEnum::LOCKED) {
+    // Lock sensitive data
+}
+```
+
+### getSystemIdleTime()
+
+Get the number of seconds the system has been idle.
+
+```php
+PowerMonitor::getSystemIdleTime(): int
+```
+
+<ResponseField name="return" type="int">
+  Returns the number of seconds since the last user input (keyboard, mouse, etc.).
+</ResponseField>
+
+**Example:**
+
+```php
+$idleSeconds = PowerMonitor::getSystemIdleTime();
+$idleMinutes = floor($idleSeconds / 60);
+
+if ($idleMinutes >= 10) {
+    echo "System has been idle for {$idleMinutes} minutes";
+}
+```
+
+### getCurrentThermalState()
+
+Get the system's current thermal state (temperature and performance level).
+
+```php
+PowerMonitor::getCurrentThermalState(): \Native\Desktop\Enums\ThermalStatesEnum
+```
+
+<ResponseField name="return" type="ThermalStatesEnum">
+  Returns one of:
+  - `ThermalStatesEnum::NOMINAL` - System temperature is normal
+  - `ThermalStatesEnum::FAIR` - System is slightly warm
+  - `ThermalStatesEnum::SERIOUS` - System is hot, performance may be throttled
+  - `ThermalStatesEnum::CRITICAL` - System is very hot, significant throttling
+  - `ThermalStatesEnum::UNKNOWN` - State could not be determined
+</ResponseField>
+
+**Example:**
+
+```php
+use Native\Desktop\Enums\ThermalStatesEnum;
+
+$thermal = PowerMonitor::getCurrentThermalState();
+
+if ($thermal === ThermalStatesEnum::SERIOUS || $thermal === ThermalStatesEnum::CRITICAL) {
+    // Reduce intensive operations
+    logger()->warning('System thermal state: ' . $thermal->value);
+}
+```
+
+### isOnBatteryPower()
+
+Check if the system is currently running on battery power.
+
+```php
+PowerMonitor::isOnBatteryPower(): bool
+```
+
+<ResponseField name="return" type="bool">
+  Returns `true` if running on battery, `false` if plugged into AC power.
+</ResponseField>
+
+**Example:**
+
+```php
+if (PowerMonitor::isOnBatteryPower()) {
+    // Enable power-saving features
+    config(['app.power_saving' => true]);
+}
+```
+
+## Complete Examples
+
+### Auto-Save on Idle
+
+```php
+use Native\Desktop\Facades\PowerMonitor;
+use Native\Desktop\Enums\SystemIdleStatesEnum;
+
+class AutoSaveManager
+{
+    public function checkAndSave()
+    {
+        $idleState = PowerMonitor::getSystemIdleState(60);
+        
+        if ($idleState === SystemIdleStatesEnum::IDLE) {
+            // User has been idle for 1 minute, auto-save
+            $this->saveAllDocuments();
+            logger()->info('Auto-saved due to idle state');
+        }
+    }
+    
+    protected function saveAllDocuments()
+    {
+        // Save logic
+    }
+}
+```
+
+### Power-Aware Background Tasks
+
+```php
+use Native\Desktop\Facades\PowerMonitor;
+use Native\Desktop\Enums\ThermalStatesEnum;
+
+class BackgroundProcessor
+{
+    public function processQueue()
+    {
+        $onBattery = PowerMonitor::isOnBatteryPower();
+        $thermal = PowerMonitor::getCurrentThermalState();
+        
+        // Adjust processing based on power state
+        if ($onBattery) {
+            // Process fewer items to save battery
+            $batchSize = 10;
+            $delay = 5000; // ms
+        } elseif ($thermal === ThermalStatesEnum::SERIOUS || 
+                  $thermal === ThermalStatesEnum::CRITICAL) {
+            // Reduce load when system is hot
+            $batchSize = 25;
+            $delay = 2000;
+        } else {
+            // Full speed on AC power with good thermals
+            $batchSize = 100;
+            $delay = 500;
+        }
+        
+        $this->processBatch($batchSize, $delay);
+    }
+    
+    protected function processBatch(int $size, int $delay)
+    {
+        // Processing logic
+    }
+}
+```
+
+### Idle Detection Service
+
+```php
+use Native\Desktop\Facades\PowerMonitor;
+use Native\Desktop\Enums\SystemIdleStatesEnum;
+
+class IdleDetectionService
+{
+    protected array $callbacks = [];
+    
+    public function monitor(int $checkInterval = 30)
+    {
+        while (true) {
+            $idleTime = PowerMonitor::getSystemIdleTime();
+            $state = PowerMonitor::getSystemIdleState(300); // 5 minutes
+            
+            $this->triggerCallbacks([
+                'idle_time' => $idleTime,
+                'state' => $state,
+                'is_battery' => PowerMonitor::isOnBatteryPower(),
+            ]);
+            
+            sleep($checkInterval);
+        }
+    }
+    
+    public function onIdle(callable $callback)
+    {
+        $this->callbacks[] = $callback;
+    }
+    
+    protected function triggerCallbacks(array $data)
+    {
+        foreach ($this->callbacks as $callback) {
+            $callback($data);
+        }
+    }
+}
+
+// Usage
+$service = new IdleDetectionService();
+
+$service->onIdle(function ($data) {
+    if ($data['state'] === SystemIdleStatesEnum::IDLE) {
+        logger()->info("System idle for {$data['idle_time']} seconds");
+    }
+    
+    if ($data['is_battery']) {
+        // Enable battery-saving mode
+    }
+});
+
+$service->monitor();
+```
+
+### System Status Dashboard
+
+```php
+use Native\Desktop\Facades\PowerMonitor;
+
+class SystemStatus
+{
+    public function getCurrentStatus()
+    {
+        return [
+            'power' => [
+                'on_battery' => PowerMonitor::isOnBatteryPower(),
+                'source' => PowerMonitor::isOnBatteryPower() ? 'battery' : 'ac',
+            ],
+            'idle' => [
+                'time_seconds' => PowerMonitor::getSystemIdleTime(),
+                'state' => PowerMonitor::getSystemIdleState(60)->value,
+            ],
+            'thermal' => [
+                'state' => PowerMonitor::getCurrentThermalState()->value,
+            ],
+        ];
+    }
+    
+    public function getHealthRecommendations()
+    {
+        $status = $this->getCurrentStatus();
+        $recommendations = [];
+        
+        if ($status['thermal']['state'] === 'critical') {
+            $recommendations[] = 'System temperature is critical. Close resource-intensive applications.';
+        }
+        
+        if ($status['power']['on_battery'] && $status['idle']['time_seconds'] > 300) {
+            $recommendations[] = 'System idle on battery. Consider suspending to save power.';
+        }
+        
+        return $recommendations;
+    }
+}
+```
+
+## Notes
+
+- Idle time is based on keyboard and mouse input, not CPU activity
+- Thermal state monitoring may not be available on all systems
+- Battery status detection works on laptops and devices with batteries
+- On desktop systems, `isOnBatteryPower()` will always return `false`
+- Consider polling intervals to avoid excessive system calls
+- Thermal states are useful for adjusting CPU-intensive tasks

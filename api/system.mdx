@@ -1,0 +1,356 @@
+---
+title: System
+description: Access system features like biometric authentication, encryption, printing, and theming
+---
+
+The System API provides access to various system-level features including biometric authentication (Touch ID), encryption, printing, timezone detection, and theme management.
+
+## Usage
+
+```php
+use Native\Desktop\Facades\System;
+
+// Check if Touch ID is available
+if (System::canPromptTouchID()) {
+    $authenticated = System::promptTouchID('Authenticate to continue');
+}
+
+// Encrypt sensitive data
+$encrypted = System::encrypt('secret data');
+
+// Get system theme
+$theme = System::theme();
+```
+
+## Biometric Authentication
+
+### canPromptTouchID()
+
+Check if the system supports Touch ID or biometric authentication.
+
+```php
+System::canPromptTouchID(): bool
+```
+
+<ResponseField name="return" type="bool">
+  Returns `true` if Touch ID is available, `false` otherwise.
+</ResponseField>
+
+**Example:**
+
+```php
+if (System::canPromptTouchID()) {
+    // Show Touch ID login option
+}
+```
+
+### promptTouchID()
+
+Prompt the user for Touch ID authentication.
+
+```php
+System::promptTouchID(string $reason): bool
+```
+
+<ParamField path="reason" type="string" required>
+  A user-friendly message explaining why authentication is needed.
+</ParamField>
+
+<ResponseField name="return" type="bool">
+  Returns `true` if authentication was successful, `false` otherwise.
+</ResponseField>
+
+**Example:**
+
+```php
+$authenticated = System::promptTouchID('Authenticate to access sensitive data');
+
+if ($authenticated) {
+    // Grant access
+} else {
+    // Deny access
+}
+```
+
+## Encryption
+
+### canEncrypt()
+
+Check if the system supports encryption.
+
+```php
+System::canEncrypt(): bool
+```
+
+<ResponseField name="return" type="bool">
+  Returns `true` if encryption is available, `false` otherwise.
+</ResponseField>
+
+### encrypt()
+
+Encrypt a string using the system's encryption capabilities.
+
+```php
+System::encrypt(string $string): ?string
+```
+
+<ParamField path="string" type="string" required>
+  The plain text string to encrypt.
+</ParamField>
+
+<ResponseField name="return" type="string|null">
+  Returns the encrypted string, or `null` if encryption failed.
+</ResponseField>
+
+**Example:**
+
+```php
+$encrypted = System::encrypt('my secret data');
+```
+
+### decrypt()
+
+Decrypt a previously encrypted string.
+
+```php
+System::decrypt(string $string): ?string
+```
+
+<ParamField path="string" type="string" required>
+  The encrypted string to decrypt.
+</ParamField>
+
+<ResponseField name="return" type="string|null">
+  Returns the decrypted string, or `null` if decryption failed.
+</ResponseField>
+
+**Example:**
+
+```php
+$encrypted = System::encrypt('secret');
+$decrypted = System::decrypt($encrypted);
+// $decrypted === 'secret'
+```
+
+## Printing
+
+### printers()
+
+Get a list of available printers on the system.
+
+```php
+System::printers(): array<\Native\Desktop\DataObjects\Printer>
+```
+
+<ResponseField name="return" type="array">
+  Returns an array of `Printer` objects, each containing:
+  - `name` (string): The printer's system name
+  - `displayName` (string): The printer's display name
+  - `description` (string): The printer description
+  - `options` (array): Additional printer options
+</ResponseField>
+
+**Example:**
+
+```php
+$printers = System::printers();
+
+foreach ($printers as $printer) {
+    echo $printer->displayName;
+}
+```
+
+### print()
+
+Print HTML content to a physical printer.
+
+```php
+System::print(string $html, ?\Native\Desktop\DataObjects\Printer $printer = null, ?array $settings = []): void
+```
+
+<ParamField path="html" type="string" required>
+  The HTML content to print.
+</ParamField>
+
+<ParamField path="printer" type="Printer" optional>
+  The printer to use. If not specified, uses the system default printer.
+</ParamField>
+
+<ParamField path="settings" type="array" optional>
+  Print settings. See [Electron's print options](https://www.electronjs.org/docs/latest/api/web-contents#contentsprintoptions-callback) for available options.
+</ParamField>
+
+**Example:**
+
+```php
+$html = '<h1>Invoice</h1><p>Total: $100</p>';
+
+// Print to default printer
+System::print($html);
+
+// Print to specific printer with settings
+$printers = System::printers();
+System::print($html, $printers[0], [
+    'silent' => false,
+    'copies' => 2,
+]);
+```
+
+### printToPDF()
+
+Convert HTML content to a PDF and return it as a base64-encoded string.
+
+```php
+System::printToPDF(string $html, ?array $settings = []): string
+```
+
+<ParamField path="html" type="string" required>
+  The HTML content to convert to PDF.
+</ParamField>
+
+<ParamField path="settings" type="array" optional>
+  PDF generation settings. See [Electron's PDF options](https://www.electronjs.org/docs/latest/api/web-contents#contentsprinttopdfoptions) for available options.
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Returns the PDF as a base64-encoded string.
+</ResponseField>
+
+**Example:**
+
+```php
+$html = '<h1>Report</h1><p>Content...</p>';
+
+$pdfBase64 = System::printToPDF($html, [
+    'pageSize' => 'A4',
+    'printBackground' => true,
+]);
+
+// Save to file
+file_put_contents('report.pdf', base64_decode($pdfBase64));
+```
+
+## System Information
+
+### timezone()
+
+Get the system's current timezone.
+
+```php
+System::timezone(): string
+```
+
+<ResponseField name="return" type="string">
+  Returns the timezone identifier (e.g., "America/New_York").
+</ResponseField>
+
+**Example:**
+
+```php
+$timezone = System::timezone();
+config(['app.timezone' => $timezone]);
+```
+
+### theme()
+
+Get or set the system theme.
+
+```php
+System::theme(?\Native\Desktop\Enums\SystemThemesEnum $theme = null): \Native\Desktop\Enums\SystemThemesEnum
+```
+
+<ParamField path="theme" type="SystemThemesEnum" optional>
+  The theme to set. Options:
+  - `SystemThemesEnum::LIGHT`
+  - `SystemThemesEnum::DARK`
+  - `SystemThemesEnum::SYSTEM`
+  
+  If omitted, gets the current theme.
+</ParamField>
+
+<ResponseField name="return" type="SystemThemesEnum">
+  Returns the current system theme.
+</ResponseField>
+
+**Example:**
+
+```php
+use Native\Desktop\Enums\SystemThemesEnum;
+
+// Get current theme
+$currentTheme = System::theme();
+
+if ($currentTheme === SystemThemesEnum::DARK) {
+    // Apply dark theme styles
+}
+
+// Set theme
+System::theme(SystemThemesEnum::DARK);
+```
+
+## Complete Examples
+
+### Secure Data Access
+
+```php
+use Native\Desktop\Facades\System;
+
+class SecureVault
+{
+    public function accessVault()
+    {
+        if (!System::canPromptTouchID()) {
+            return response()->json(['error' => 'Biometric auth not available']);
+        }
+        
+        $authenticated = System::promptTouchID('Access secure vault');
+        
+        if (!$authenticated) {
+            return response()->json(['error' => 'Authentication failed'], 401);
+        }
+        
+        // User authenticated, decrypt sensitive data
+        $encryptedData = cache('user_secrets');
+        $decrypted = System::decrypt($encryptedData);
+        
+        return response()->json(['data' => $decrypted]);
+    }
+}
+```
+
+### Invoice Printing
+
+```php
+use Native\Desktop\Facades\System;
+
+class InvoiceController
+{
+    public function print($invoiceId)
+    {
+        $invoice = Invoice::findOrFail($invoiceId);
+        $html = view('invoices.print', compact('invoice'))->render();
+        
+        // Get available printers
+        $printers = System::printers();
+        
+        // Let user select printer or use default
+        System::print($html, $printers[0] ?? null);
+    }
+    
+    public function exportPDF($invoiceId)
+    {
+        $invoice = Invoice::findOrFail($invoiceId);
+        $html = view('invoices.print', compact('invoice'))->render();
+        
+        $pdfBase64 = System::printToPDF($html, [
+            'pageSize' => 'Letter',
+            'printBackground' => true,
+        ]);
+        
+        return response()->json([
+            'filename' => "invoice-{$invoiceId}.pdf",
+            'data' => $pdfBase64,
+        ]);
+    }
+}
+```

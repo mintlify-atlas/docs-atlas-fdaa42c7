@@ -1,0 +1,236 @@
+---
+title: Settings
+description: API reference for persistent settings storage in NativePHP Desktop applications
+---
+
+The `Settings` class provides a simple key-value store for persisting application settings. Data is stored securely on the user's system and persists across application restarts.
+
+## Available Methods
+
+### set()
+
+Store a setting value.
+
+<ParamField path="key" type="string" required>
+  The setting key to store.
+</ParamField>
+
+<ParamField path="value" type="mixed" required>
+  The value to store. Can be any JSON-serializable type (string, number, boolean, array, object).
+</ParamField>
+
+```php
+use Native\Desktop\Facades\Settings;
+
+// Store simple values
+Settings::set('theme', 'dark');
+Settings::set('volume', 75);
+Settings::set('notifications_enabled', true);
+
+// Store arrays and objects
+Settings::set('window_position', [
+    'x' => 100,
+    'y' => 100,
+    'width' => 800,
+    'height' => 600,
+]);
+```
+
+### get()
+
+Retrieve a setting value.
+
+<ParamField path="key" type="string" required>
+  The setting key to retrieve.
+</ParamField>
+
+<ParamField path="default" type="mixed" default="null">
+  The default value to return if the key doesn't exist. Can also be a closure that returns a value.
+</ParamField>
+
+<ResponseField name="return" type="mixed">
+  Returns the stored value, or the default value if the key doesn't exist.
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\Settings;
+
+// Get with default value
+$theme = Settings::get('theme', 'light');
+$volume = Settings::get('volume', 50);
+$notifications = Settings::get('notifications_enabled', true);
+
+// Get with closure default
+$apiKey = Settings::get('api_key', function () {
+    return config('services.api.key');
+});
+
+// Get array value
+$position = Settings::get('window_position', [
+    'x' => 0,
+    'y' => 0,
+    'width' => 1024,
+    'height' => 768,
+]);
+```
+
+### forget()
+
+Remove a specific setting.
+
+<ParamField path="key" type="string" required>
+  The setting key to remove.
+</ParamField>
+
+```php
+use Native\Desktop\Facades\Settings;
+
+Settings::forget('theme');
+Settings::forget('window_position');
+```
+
+### clear()
+
+Remove all settings.
+
+```php
+use Native\Desktop\Facades\Settings;
+
+Settings::clear();
+```
+
+<Warning>
+This will permanently delete all stored settings. Use with caution.
+</Warning>
+
+## Storage Location
+
+Settings are stored in the user's application data directory, which varies by operating system:
+
+- **Windows**: `%APPDATA%\YourApp\settings.json`
+- **macOS**: `~/Library/Application Support/YourApp/settings.json`
+- **Linux**: `~/.config/YourApp/settings.json`
+
+The exact location depends on your app's ID configured in `config/nativephp.php`.
+
+## Example Usage
+
+### User Preferences
+
+```php
+use Native\Desktop\Facades\Settings;
+
+class PreferencesController
+{
+    public function update(Request $request)
+    {
+        Settings::set('theme', $request->theme);
+        Settings::set('language', $request->language);
+        Settings::set('auto_start', $request->auto_start);
+        
+        return response()->json(['message' => 'Preferences saved']);
+    }
+    
+    public function show()
+    {
+        return response()->json([
+            'theme' => Settings::get('theme', 'system'),
+            'language' => Settings::get('language', 'en'),
+            'auto_start' => Settings::get('auto_start', false),
+        ]);
+    }
+}
+```
+
+### Window State Persistence
+
+```php
+use Native\Desktop\Facades\Settings;
+use Native\Desktop\Facades\Window;
+use Native\Desktop\Events\Windows\WindowResized;
+use Native\Desktop\Events\Windows\WindowMoved;
+
+// Save window state
+Event::listen(WindowResized::class, function ($event) {
+    Settings::set('window_size', [
+        'width' => $event->width,
+        'height' => $event->height,
+    ]);
+});
+
+Event::listen(WindowMoved::class, function ($event) {
+    Settings::set('window_position', [
+        'x' => $event->x,
+        'y' => $event->y,
+    ]);
+});
+
+// Restore window state on startup
+class NativeAppServiceProvider
+{
+    public function boot(): void
+    {
+        $size = Settings::get('window_size', [
+            'width' => 1024,
+            'height' => 768,
+        ]);
+        
+        $position = Settings::get('window_position', [
+            'x' => 100,
+            'y' => 100,
+        ]);
+        
+        Window::open()
+            ->width($size['width'])
+            ->height($size['height'])
+            ->x($position['x'])
+            ->y($position['y']);
+    }
+}
+```
+
+### First-Run Detection
+
+```php
+use Native\Desktop\Facades\Settings;
+
+if (!Settings::get('first_run_complete', false)) {
+    // Show welcome screen or onboarding
+    $this->showWelcomeScreen();
+    
+    // Mark first run as complete
+    Settings::set('first_run_complete', true);
+}
+```
+
+### Recent Files List
+
+```php
+use Native\Desktop\Facades\Settings;
+
+class FileManager
+{
+    public function addRecentFile(string $path): void
+    {
+        $recent = Settings::get('recent_files', []);
+        
+        // Add to front of list
+        array_unshift($recent, $path);
+        
+        // Keep only last 10 files
+        $recent = array_slice(array_unique($recent), 0, 10);
+        
+        Settings::set('recent_files', $recent);
+    }
+    
+    public function getRecentFiles(): array
+    {
+        return Settings::get('recent_files', []);
+    }
+    
+    public function clearRecentFiles(): void
+    {
+        Settings::forget('recent_files');
+    }
+}
+```

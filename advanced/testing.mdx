@@ -1,0 +1,524 @@
+---
+title: Testing
+description: Learn how to test your NativePHP Desktop application using fakes and mocks
+---
+
+NativePHP Desktop provides fake implementations of all its major services, making it easy to test your application without needing to run the native runtime.
+
+## Using Fakes
+
+NativePHP provides fake classes for all its contracts in the `Native\Desktop\Fakes` namespace. These fakes implement the same interfaces as the real services but provide testing utilities.
+
+### Available Fakes
+
+The following fakes are available:
+
+- `WindowManagerFake` - For testing window operations
+- `QueueWorkerFake` - For testing queue worker operations
+- `PowerMonitorFake` - For testing power monitoring
+- `GlobalShortcutFake` - For testing global shortcuts
+- `ShellFake` - For testing shell operations
+- `ChildProcessFake` - For testing child processes
+
+## Queue Worker Testing
+
+Test queue worker operations using the `QueueWorkerFake`:
+
+```php
+use Native\Desktop\Contracts\QueueWorker;
+use Native\Desktop\DataObjects\QueueConfig;
+use Native\Desktop\Fakes\QueueWorkerFake;
+
+class QueueWorkerTest extends TestCase
+{
+    public function test_starts_queue_worker()
+    {
+        // Create fake
+        $fake = new QueueWorkerFake();
+        $this->app->instance(QueueWorker::class, $fake);
+        
+        // Start worker
+        $config = new QueueConfig(
+            alias: 'test',
+            queuesToConsume: ['default'],
+            memoryLimit: 128,
+            timeout: 60,
+            sleep: 3
+        );
+        
+        $fake->up($config);
+        
+        // Assert worker was started
+        $fake->assertUp(fn($config) => $config->alias === 'test');
+    }
+    
+    public function test_stops_queue_worker()
+    {
+        $fake = new QueueWorkerFake();
+        $this->app->instance(QueueWorker::class, $fake);
+        
+        // Stop worker
+        $fake->down('test');
+        
+        // Assert worker was stopped
+        $fake->assertDown('test');
+        
+        // Or with callback
+        $fake->assertDown(fn($alias) => $alias === 'test');
+    }
+}
+```
+
+### QueueWorkerFake Methods
+
+<CodeGroup>
+
+```php Assertions
+// Assert a worker was started with matching config
+$fake->assertUp(fn(QueueConfig $config) => $config->alias === 'test');
+
+// Assert a worker was stopped by alias
+$fake->assertDown('worker-name');
+
+// Assert with callback
+$fake->assertDown(fn(string $alias) => str_starts_with($alias, 'test'));
+```
+
+```php Inspection
+// Get all started workers
+$ups = $fake->ups; // array<QueueConfig>
+
+// Get all stopped workers
+$downs = $fake->downs; // array<string>
+
+// Check if specific worker was started
+$wasStarted = collect($fake->ups)
+    ->contains(fn($config) => $config->alias === 'test');
+```
+
+</CodeGroup>
+
+## Power Monitor Testing
+
+Test power monitoring features using the `PowerMonitorFake`:
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+use Native\Desktop\Fakes\PowerMonitorFake;
+use Native\Desktop\Enums\SystemIdleStatesEnum;
+use Native\Desktop\Enums\ThermalStatesEnum;
+
+class PowerMonitorTest extends TestCase
+{
+    public function test_checks_battery_status()
+    {
+        $fake = new PowerMonitorFake();
+        $this->app->instance(PowerMonitor::class, $fake);
+        
+        // Call the method
+        $isOnBattery = $fake->isOnBatteryPower();
+        
+        // Assert it was called
+        $fake->assertIsOnBatteryPowerCount(1);
+        
+        // Fake always returns false
+        $this->assertFalse($isOnBattery);
+    }
+    
+    public function test_checks_idle_state()
+    {
+        $fake = new PowerMonitorFake();
+        $this->app->instance(PowerMonitor::class, $fake);
+        
+        // Call with threshold
+        $state = $fake->getSystemIdleState(60);
+        
+        // Assert it was called with correct threshold
+        $fake->assertGetSystemIdleState(60);
+        
+        // Assert call count
+        $fake->assertGetSystemIdleStateCount(1);
+        
+        // Fake returns UNKNOWN
+        $this->assertEquals(SystemIdleStatesEnum::UNKNOWN, $state);
+    }
+    
+    public function test_checks_thermal_state()
+    {
+        $fake = new PowerMonitorFake();
+        $this->app->instance(PowerMonitor::class, $fake);
+        
+        // Call the method
+        $state = $fake->getCurrentThermalState();
+        
+        // Assert it was called
+        $fake->assertGetCurrentThermalStateCount(1);
+        
+        // Fake returns UNKNOWN
+        $this->assertEquals(ThermalStatesEnum::UNKNOWN, $state);
+    }
+}
+```
+
+### PowerMonitorFake Methods
+
+<CodeGroup>
+
+```php Assertions
+// Assert getSystemIdleState was called with specific threshold
+$fake->assertGetSystemIdleState(60);
+
+// Assert with callback
+$fake->assertGetSystemIdleState(fn(int $threshold) => $threshold > 30);
+
+// Assert method call counts
+$fake->assertGetSystemIdleStateCount(2);
+$fake->assertGetSystemIdleTimeCount(1);
+$fake->assertGetCurrentThermalStateCount(1);
+$fake->assertIsOnBatteryPowerCount(3);
+```
+
+```php Inspection
+// Get all getSystemIdleState calls
+$calls = $fake->getSystemIdleStateCalls; // array<int>
+
+// Get call counts
+$idleStateCount = $fake->getSystemIdleStateCount;
+$idleTimeCount = $fake->getSystemIdleTimeCount;
+$thermalStateCount = $fake->getCurrentThermalStateCount;
+$batteryCount = $fake->isOnBatteryPowerCount;
+```
+
+```php Return Values
+// All methods return default values:
+getSystemIdleState(60)    // SystemIdleStatesEnum::UNKNOWN
+getSystemIdleTime()        // 0
+getCurrentThermalState()   // ThermalStatesEnum::UNKNOWN
+isOnBatteryPower()         // false
+```
+
+</CodeGroup>
+
+## Testing with Facades
+
+If you use facades, you can swap them for fakes:
+
+```php
+use Native\Desktop\Facades\QueueWorker;
+use Native\Desktop\Fakes\QueueWorkerFake;
+
+class ServiceTest extends TestCase
+{
+    public function test_service_starts_worker()
+    {
+        // Swap facade implementation
+        $fake = new QueueWorkerFake();
+        QueueWorker::swap($fake);
+        
+        // Use your service
+        $service = new MyService();
+        $service->startWorker();
+        
+        // Assert against fake
+        $fake->assertUp(fn($config) => $config->alias === 'my-worker');
+    }
+}
+```
+
+## Testing Service Providers
+
+Test that your service provider correctly configures NativePHP:
+
+```php
+use Native\Desktop\Contracts\QueueWorker;
+use Native\Desktop\Fakes\QueueWorkerFake;
+
+class NativeAppServiceProviderTest extends TestCase
+{
+    public function test_boots_with_queue_workers()
+    {
+        // Create fake
+        $fake = new QueueWorkerFake();
+        $this->app->instance(QueueWorker::class, $fake);
+        
+        // Set config
+        config([
+            'nativephp.queue_workers' => [
+                'default' => [
+                    'queues' => ['default'],
+                    'memory_limit' => 128,
+                    'timeout' => 60,
+                    'sleep' => 3,
+                ],
+            ],
+        ]);
+        
+        // Boot provider
+        $provider = new \App\Providers\NativeAppServiceProvider($this->app);
+        $provider->boot($fake);
+        
+        // Assert worker was started
+        $fake->assertUp(fn($config) => $config->alias === 'default');
+    }
+}
+```
+
+## Mocking for Custom Behavior
+
+If you need custom return values, mock the services:
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+use Native\Desktop\Enums\SystemIdleStatesEnum;
+use Native\Desktop\Enums\ThermalStatesEnum;
+
+class CustomBehaviorTest extends TestCase
+{
+    public function test_handles_battery_power()
+    {
+        // Create mock
+        $mock = $this->createMock(PowerMonitor::class);
+        
+        // Configure mock
+        $mock->method('isOnBatteryPower')
+            ->willReturn(true);
+            
+        $mock->method('getCurrentThermalState')
+            ->willReturn(ThermalStatesEnum::CRITICAL);
+        
+        $this->app->instance(PowerMonitor::class, $mock);
+        
+        // Test your code
+        $manager = new ResourceManager(
+            app(PowerMonitor::class)
+        );
+        
+        // Assert behavior when on battery with critical thermal state
+        $this->assertFalse($manager->shouldRunIntensiveTask());
+    }
+    
+    public function test_handles_different_idle_states()
+    {
+        $mock = $this->createMock(PowerMonitor::class);
+        
+        // Test ACTIVE state
+        $mock->method('getSystemIdleState')
+            ->willReturn(SystemIdleStatesEnum::ACTIVE);
+            
+        $this->app->instance(PowerMonitor::class, $mock);
+        
+        $manager = new SecurityManager(
+            app(PowerMonitor::class)
+        );
+        
+        $this->assertTrue($manager->isUserActive());
+    }
+}
+```
+
+## Integration Testing
+
+Test the integration between your code and NativePHP:
+
+```php
+use Native\Desktop\Contracts\QueueWorker;
+use Native\Desktop\Contracts\PowerMonitor;
+use Native\Desktop\Fakes\QueueWorkerFake;
+use Native\Desktop\Fakes\PowerMonitorFake;
+
+class IntegrationTest extends TestCase
+{
+    public function test_adjusts_workers_based_on_power()
+    {
+        // Set up fakes
+        $queueFake = new QueueWorkerFake();
+        $powerFake = new PowerMonitorFake();
+        
+        $this->app->instance(QueueWorker::class, $queueFake);
+        $this->app->instance(PowerMonitor::class, $powerFake);
+        
+        // Run your service
+        $service = new AdaptiveQueueService(
+            app(QueueWorker::class),
+            app(PowerMonitor::class)
+        );
+        
+        $service->optimize();
+        
+        // Assert both services were used
+        $powerFake->assertIsOnBatteryPowerCount(1);
+        $queueFake->assertUp(fn($config) => true);
+    }
+}
+```
+
+## Testing Database Operations
+
+Test database operations with the NativePHP database:
+
+```php
+class DatabaseTest extends TestCase
+{
+    use RefreshDatabase;
+    
+    protected function setUp(): void
+    {
+        parent::setUp();
+        
+        // Use in-memory SQLite for tests
+        config([
+            'database.default' => 'testing',
+            'database.connections.testing' => [
+                'driver' => 'sqlite',
+                'database' => ':memory:',
+            ],
+        ]);
+    }
+    
+    public function test_stores_user_data()
+    {
+        $user = User::create([
+            'name' => 'Test User',
+            'email' => 'test@example.com',
+        ]);
+        
+        $this->assertDatabaseHas('users', [
+            'email' => 'test@example.com',
+        ]);
+    }
+}
+```
+
+## Testing Storage Disks
+
+Test storage disk operations:
+
+```php
+use Illuminate\Support\Facades\Storage;
+
+class StorageTest extends TestCase
+{
+    public function test_writes_to_documents()
+    {
+        // Use fake disk for testing
+        Storage::fake('documents');
+        
+        // Test your code
+        $service = new DocumentService();
+        $service->saveDocument('test.txt', 'content');
+        
+        // Assert file was created
+        Storage::disk('documents')->assertExists('MyApp/test.txt');
+    }
+    
+    public function test_reads_from_downloads()
+    {
+        Storage::fake('downloads');
+        
+        // Create test file
+        Storage::disk('downloads')->put('import.csv', 'test,data');
+        
+        // Test your code
+        $service = new ImportService();
+        $result = $service->import('import.csv');
+        
+        // Assert it was processed
+        $this->assertTrue($result);
+    }
+}
+```
+
+## Best Practices
+
+<Note>
+  - **Use Fakes**: Prefer fakes over mocks when available for better test reliability
+  - **Test Isolation**: Each test should be independent and not rely on other tests
+  - **Assert Behavior**: Focus on testing behavior, not implementation details
+  - **Mock External**: Mock external services and APIs, not your own code
+  - **Test Edge Cases**: Test error conditions, empty states, and boundary conditions
+</Note>
+
+## Common Test Patterns
+
+<CodeGroup>
+
+```php Arrange-Act-Assert
+public function test_example()
+{
+    // Arrange - Set up test data and dependencies
+    $fake = new QueueWorkerFake();
+    $this->app->instance(QueueWorker::class, $fake);
+    
+    // Act - Execute the code being tested
+    $service = new MyService();
+    $service->doSomething();
+    
+    // Assert - Verify the expected outcome
+    $fake->assertUp(fn($config) => true);
+}
+```
+
+```php Test Doubles
+public function test_with_mock()
+{
+    // Create a mock for complete control
+    $mock = $this->createMock(PowerMonitor::class);
+    $mock->expects($this->once())
+        ->method('isOnBatteryPower')
+        ->willReturn(true);
+    
+    $this->app->instance(PowerMonitor::class, $mock);
+    
+    // Test your code
+    $service = new MyService();
+    $service->checkPower();
+}
+```
+
+```php Feature Tests
+public function test_full_workflow()
+{
+    // Set up all required fakes
+    Storage::fake('documents');
+    $queueFake = new QueueWorkerFake();
+    $this->app->instance(QueueWorker::class, $queueFake);
+    
+    // Execute full workflow
+    $this->artisan('my:command');
+    
+    // Assert all expected outcomes
+    Storage::disk('documents')->assertExists('output.txt');
+    $queueFake->assertUp(fn($c) => $c->alias === 'processor');
+}
+```
+
+</CodeGroup>
+
+## Troubleshooting Tests
+
+### Fake Not Working
+
+If fakes aren't being used:
+
+1. Ensure you're binding to the correct contract interface
+2. Check that you're resolving from the container, not using `new`
+3. Verify the fake is set up before the code under test runs
+4. Use `$this->app->instance()` for proper container binding
+
+### Assertions Failing
+
+If assertions fail unexpectedly:
+
+1. Check that methods are actually being called
+2. Verify you're asserting on the correct fake instance
+3. Use inspection properties to debug what was actually called
+4. Add temporary dumps to see the fake's state
+
+### Database Issues in Tests
+
+If database tests fail:
+
+1. Use `RefreshDatabase` trait to reset between tests
+2. Configure an in-memory SQLite database for speed
+3. Run migrations in `setUp()` if needed
+4. Check that you're using the correct database connection

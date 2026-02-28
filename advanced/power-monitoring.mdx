@@ -1,0 +1,390 @@
+---
+title: Power Monitoring
+description: Monitor system power state, battery status, and thermal conditions in your NativePHP Desktop application
+---
+
+NativePHP Desktop provides access to system power monitoring APIs, allowing your application to respond to power state changes, battery status, thermal conditions, and system idle states.
+
+## Power Monitor Service
+
+Access the Power Monitor service using dependency injection:
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+
+class NativeAppServiceProvider extends ServiceProvider
+{
+    public function boot(PowerMonitor $powerMonitor)
+    {
+        // Use power monitor methods
+    }
+}
+```
+
+## Battery Status
+
+Check if the system is running on battery power:
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+
+public function checkPowerSource(PowerMonitor $powerMonitor)
+{
+    if ($powerMonitor->isOnBatteryPower()) {
+        // System is running on battery
+        $this->reducePowerConsumption();
+    } else {
+        // System is plugged in
+        $this->enableFullPerformance();
+    }
+}
+```
+
+<Note>
+  The `isOnBatteryPower()` method returns `true` when the system is running on battery power and `false` when connected to AC power.
+</Note>
+
+## System Idle State
+
+Monitor how long the system has been idle and determine the current idle state:
+
+### Get Idle Time
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+
+public function checkIdleTime(PowerMonitor $powerMonitor)
+{
+    // Get idle time in seconds
+    $idleTime = $powerMonitor->getSystemIdleTime();
+    
+    if ($idleTime > 300) {
+        // User has been idle for more than 5 minutes
+        $this->pauseBackgroundTasks();
+    }
+}
+```
+
+### Get Idle State
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+use Native\Desktop\Enums\SystemIdleStatesEnum;
+
+public function checkIdleState(PowerMonitor $powerMonitor)
+{
+    // Check if system is idle after 60 seconds
+    $state = $powerMonitor->getSystemIdleState(threshold: 60);
+    
+    match ($state) {
+        SystemIdleStatesEnum::ACTIVE => $this->continueNormalOperation(),
+        SystemIdleStatesEnum::IDLE => $this->reduceBackgroundActivity(),
+        SystemIdleStatesEnum::LOCKED => $this->pauseSensitiveOperations(),
+        SystemIdleStatesEnum::UNKNOWN => $this->handleUnknownState(),
+    };
+}
+```
+
+### Idle States
+
+The `SystemIdleStatesEnum` provides the following states:
+
+| State | Description |
+|-------|-------------|
+| `ACTIVE` | User is actively using the system |
+| `IDLE` | System has been idle for the specified threshold |
+| `LOCKED` | System is locked by the user |
+| `UNKNOWN` | Idle state could not be determined |
+
+<Accordion title="Understanding the threshold parameter">
+  The `threshold` parameter (in seconds) determines when the system is considered idle:
+  
+  - If the system has been idle for **less than** the threshold: `ACTIVE`
+  - If the system has been idle for **more than** the threshold: `IDLE`
+  - If the system is locked: `LOCKED` (regardless of threshold)
+  
+  Common threshold values:
+  - `60` - 1 minute (detect short breaks)
+  - `300` - 5 minutes (detect extended inactivity)
+  - `600` - 10 minutes (detect user absence)
+</Accordion>
+
+## Thermal State
+
+Monitor the system's thermal state to adjust performance:
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+use Native\Desktop\Enums\ThermalStatesEnum;
+
+public function checkThermalState(PowerMonitor $powerMonitor)
+{
+    $thermalState = $powerMonitor->getCurrentThermalState();
+    
+    match ($thermalState) {
+        ThermalStatesEnum::NOMINAL => {
+            // System temperature is normal
+            $this->enableAllFeatures();
+        },
+        ThermalStatesEnum::FAIR => {
+            // System is getting warm
+            $this->reduceNonEssentialTasks();
+        },
+        ThermalStatesEnum::SERIOUS => {
+            // System is hot
+            $this->minimizeBackgroundProcessing();
+        },
+        ThermalStatesEnum::CRITICAL => {
+            // System is critically hot
+            $this->pauseAllNonEssentialOperations();
+        },
+        ThermalStatesEnum::UNKNOWN => {
+            // Thermal state unavailable
+            $this->useDefaultBehavior();
+        },
+    };
+}
+```
+
+### Thermal States
+
+| State | Description |
+|-------|-------------|
+| `NOMINAL` | System temperature is normal |
+| `FAIR` | System is slightly warm |
+| `SERIOUS` | System is hot and may throttle performance |
+| `CRITICAL` | System is critically hot |
+| `UNKNOWN` | Thermal state could not be determined |
+
+<Warning>
+  When the thermal state is `SERIOUS` or `CRITICAL`, consider reducing CPU-intensive operations to prevent system throttling or shutdown.
+</Warning>
+
+## Practical Examples
+
+### Adaptive Background Processing
+
+Adjust background task frequency based on power state:
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+
+class BackgroundTaskScheduler
+{
+    public function __construct(
+        private PowerMonitor $powerMonitor
+    ) {}
+    
+    public function getTaskInterval(): int
+    {
+        if ($this->powerMonitor->isOnBatteryPower()) {
+            // Reduce frequency on battery
+            return 300; // 5 minutes
+        }
+        
+        // More frequent when plugged in
+        return 60; // 1 minute
+    }
+}
+```
+
+### Smart Resource Management
+
+Combine multiple power monitoring features:
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+use Native\Desktop\Enums\ThermalStatesEnum;
+
+class ResourceManager
+{
+    public function __construct(
+        private PowerMonitor $powerMonitor
+    ) {}
+    
+    public function shouldRunIntensiveTask(): bool
+    {
+        // Don't run on battery
+        if ($this->powerMonitor->isOnBatteryPower()) {
+            return false;
+        }
+        
+        // Don't run if system is hot
+        $thermal = $this->powerMonitor->getCurrentThermalState();
+        if (in_array($thermal, [ThermalStatesEnum::SERIOUS, ThermalStatesEnum::CRITICAL])) {
+            return false;
+        }
+        
+        // Don't run if user is active
+        $idleTime = $this->powerMonitor->getSystemIdleTime();
+        if ($idleTime < 60) {
+            return false;
+        }
+        
+        return true;
+    }
+}
+```
+
+### Auto-Pause on Lock
+
+Pause sensitive operations when the system is locked:
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+use Native\Desktop\Enums\SystemIdleStatesEnum;
+
+class SecurityManager
+{
+    public function __construct(
+        private PowerMonitor $powerMonitor
+    ) {}
+    
+    public function checkSecurityState(): void
+    {
+        $state = $this->powerMonitor->getSystemIdleState(threshold: 1);
+        
+        if ($state === SystemIdleStatesEnum::LOCKED) {
+            // Pause sensitive operations
+            $this->pauseFileEncryption();
+            $this->closeSecureConnections();
+            $this->lockSensitiveUI();
+        }
+    }
+}
+```
+
+### Battery-Aware Sync
+
+Adjust sync behavior based on power source:
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+
+class SyncManager
+{
+    public function __construct(
+        private PowerMonitor $powerMonitor
+    ) {}
+    
+    public function sync(): void
+    {
+        if ($this->powerMonitor->isOnBatteryPower()) {
+            // Sync only critical data
+            $this->syncCriticalData();
+        } else {
+            // Full sync when plugged in
+            $this->syncAllData();
+        }
+    }
+}
+```
+
+## Periodic Monitoring
+
+Monitor power state periodically using Laravel's scheduler:
+
+```php
+use Native\Desktop\Contracts\PowerMonitor;
+use Illuminate\Support\Facades\Schedule;
+
+class NativeAppServiceProvider extends ServiceProvider
+{
+    public function boot(PowerMonitor $powerMonitor)
+    {
+        // Check power state every minute
+        Schedule::call(function () use ($powerMonitor) {
+            if ($powerMonitor->isOnBatteryPower()) {
+                event(new BatteryPowerDetected());
+            }
+        })->everyMinute();
+        
+        // Check thermal state every 5 minutes
+        Schedule::call(function () use ($powerMonitor) {
+            $thermal = $powerMonitor->getCurrentThermalState();
+            event(new ThermalStateChanged($thermal));
+        })->everyFiveMinutes();
+    }
+}
+```
+
+## Testing
+
+Use the `PowerMonitorFake` for testing:
+
+```php
+use Native\Desktop\Facades\PowerMonitor;
+
+public function test_reduces_activity_on_battery()
+{
+    PowerMonitor::fake();
+    
+    // Simulate battery power
+    // Note: The fake always returns false for isOnBatteryPower()
+    // In real tests, you may need to mock the behavior
+    
+    $manager = new ResourceManager(
+        app(\Native\Desktop\Contracts\PowerMonitor::class)
+    );
+    
+    // Assert behavior
+    PowerMonitor::assertIsOnBatteryPowerCount(1);
+}
+```
+
+## Best Practices
+
+<Note>
+  - **Check Periodically**: Monitor power state at regular intervals, not constantly
+  - **Respect Battery**: Reduce background activity when on battery power
+  - **Watch Thermal State**: Pause intensive tasks when the system is hot
+  - **Detect Idle**: Reduce activity when the user is idle or the system is locked
+  - **User Control**: Allow users to override power-saving behaviors in settings
+</Note>
+
+## Platform Support
+
+<Accordion title="Platform-Specific Behavior">
+  **macOS**
+  - Full support for all power monitoring features
+  - Accurate battery status and thermal state detection
+  - System idle states work reliably
+  
+  **Windows**
+  - Full support for battery and idle state detection
+  - Thermal state support depends on system hardware
+  
+  **Linux**
+  - Battery status depends on the desktop environment
+  - Thermal state may return `UNKNOWN` on some systems
+  - Idle state detection varies by window manager
+</Accordion>
+
+## Troubleshooting
+
+### Unknown State Returned
+
+If methods return `UNKNOWN` states:
+
+1. The feature may not be supported on the current platform
+2. System permissions may be required
+3. Hardware may not provide the necessary information
+4. Fall back to default behavior when receiving `UNKNOWN`
+
+### Inaccurate Idle Time
+
+If idle time seems incorrect:
+
+1. Idle time is system-wide, not app-specific
+2. Some activities (like moving the mouse) reset the idle timer
+3. Media playback may or may not count as activity (platform-dependent)
+4. Test with different threshold values
+
+### Battery Status Always False
+
+If `isOnBatteryPower()` always returns false:
+
+1. Desktop computers without batteries will always return false
+2. Some laptops may not report battery status correctly
+3. The system may be plugged in
+4. Check system power settings

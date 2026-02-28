@@ -1,0 +1,278 @@
+---
+title: Database
+description: Understand how NativePHP Desktop handles database configuration and management
+---
+
+NativePHP Desktop automatically configures and manages an SQLite database for your application. This database is used for application data, queue jobs, and other persistent storage needs.
+
+## Automatic Configuration
+
+When your NativePHP application starts, it automatically:
+
+1. Creates a dedicated SQLite database connection named `nativephp`
+2. Sets this as the default database connection
+3. Configures queue and cache systems to use this database
+4. Optimizes SQLite settings for desktop application performance
+
+<Note>
+  The `nativephp` connection is automatically configured and set as the default. You don't need to manually configure it in your `config/database.php` file.
+</Note>
+
+## Database Location
+
+### Production Mode
+
+In production, the database is stored in the application's data directory:
+
+```php
+// Configured via environment variable
+NATIVEPHP_DATABASE_PATH=/path/to/app/data/database.sqlite
+```
+
+The exact path is automatically set by NativePHP based on the operating system:
+
+- **macOS**: `~/Library/Application Support/YourApp/database.sqlite`
+- **Windows**: `%APPDATA%\YourApp\database.sqlite`
+- **Linux**: `~/.config/YourApp/database.sqlite`
+
+### Development Mode
+
+In development (when `APP_DEBUG=true`), the database is stored in your project's `database` directory:
+
+```
+database/nativephp.sqlite
+```
+
+<Warning>
+  The development database is automatically created if it doesn't exist. Migrations are run automatically on first creation.
+</Warning>
+
+## Database Configuration
+
+NativePHP applies the following configuration to the SQLite database:
+
+```php
+'nativephp' => [
+    'driver' => 'sqlite',
+    'database' => $databasePath,
+    'prefix' => '',
+    'foreign_key_constraints' => true,
+],
+```
+
+### SQLite Optimizations
+
+NativePHP automatically applies SQLite optimizations for desktop applications:
+
+```php
+// Write-Ahead Logging for better concurrency
+DB::statement('PRAGMA journal_mode=WAL;');
+
+// 5-second timeout for busy database
+DB::statement('PRAGMA busy_timeout=5000;');
+```
+
+<Accordion title="What is WAL mode?">
+  Write-Ahead Logging (WAL) is an alternative to the traditional rollback journal. It provides:
+  
+  - **Better Concurrency**: Readers don't block writers and writers don't block readers
+  - **Faster Performance**: Most transactions are faster with WAL
+  - **More Durable**: Better protection against corruption
+  
+  WAL mode is ideal for desktop applications where multiple processes (web server, queue workers, etc.) need to access the database simultaneously.
+</Accordion>
+
+## Queue and Cache Configuration
+
+NativePHP automatically configures Laravel's queue and cache systems to use the `nativephp` database:
+
+```php
+// Queue configuration
+config(['database.default' => 'nativephp']);
+config(['queue.default' => 'database']);
+config(['queue.failed.database' => 'nativephp']);
+config(['queue.batching.database' => 'nativephp']);
+config(['queue.connections.database.connection' => 'nativephp']);
+```
+
+## Running Migrations
+
+NativePHP provides commands for managing your database:
+
+### Migrate Command
+
+```bash
+php artisan native:migrate
+```
+
+Runs all pending migrations on the NativePHP database.
+
+<Note>
+  In development mode, migrations run automatically when the database is first created.
+</Note>
+
+### Fresh Command
+
+```bash
+php artisan native:fresh
+```
+
+Drops all tables and re-runs all migrations. Use this for a clean slate during development.
+
+<Warning>
+  The `native:fresh` command will delete all data in your database. Use with caution!
+</Warning>
+
+### Seed Command
+
+```bash
+php artisan native:seed
+```
+
+Seeds the database with test data using your configured seeders.
+
+### Wipe Command
+
+```bash
+php artisan native:wipe
+```
+
+Completely removes the database file and associated WAL files:
+
+```php
+// Deletes these files:
+- nativephp.sqlite
+- nativephp.sqlite-shm
+- nativephp.sqlite-wal
+```
+
+## Using the Database
+
+Use Laravel's database features as you normally would:
+
+<CodeGroup>
+
+```php Eloquent
+use App\Models\User;
+
+// Create records
+$user = User::create([
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+]);
+
+// Query records
+$users = User::where('active', true)->get();
+
+// Update records
+$user->update(['last_login' => now()]);
+```
+
+```php Query Builder
+use Illuminate\Support\Facades\DB;
+
+// Insert
+DB::table('users')->insert([
+    'name' => 'John Doe',
+    'email' => 'john@example.com',
+]);
+
+// Select
+$users = DB::table('users')
+    ->where('active', true)
+    ->get();
+
+// Update
+DB::table('users')
+    ->where('id', 1)
+    ->update(['last_login' => now()]);
+```
+
+```php Raw Queries
+use Illuminate\Support\Facades\DB;
+
+// Select
+$users = DB::select('SELECT * FROM users WHERE active = ?', [true]);
+
+// Insert
+DB::insert('INSERT INTO users (name, email) VALUES (?, ?)', [
+    'John Doe',
+    'john@example.com',
+]);
+
+// Update
+DB::update('UPDATE users SET last_login = ? WHERE id = ?', [
+    now(),
+    1,
+]);
+```
+
+</CodeGroup>
+
+## Multiple Database Connections
+
+You can still use other database connections alongside the NativePHP database:
+
+```php config/database.php
+'connections' => [
+    // NativePHP database (automatically configured)
+    'nativephp' => [...],
+    
+    // Additional connections
+    'external' => [
+        'driver' => 'mysql',
+        'host' => env('DB_HOST'),
+        'database' => env('DB_DATABASE'),
+        // ...
+    ],
+],
+```
+
+Use them explicitly when needed:
+
+```php
+// Use external database
+DB::connection('external')->table('users')->get();
+
+// Use NativePHP database (default)
+DB::table('users')->get();
+```
+
+## Best Practices
+
+<Note>
+  - **Migrations**: Always use migrations to manage database schema changes
+  - **Backups**: Implement a backup strategy for user data in production
+  - **Indexes**: Add indexes to frequently queried columns for better performance
+  - **Transactions**: Use database transactions for operations that modify multiple records
+</Note>
+
+## Troubleshooting
+
+### Database Locked Errors
+
+If you encounter "database is locked" errors:
+
+1. Ensure WAL mode is enabled (it is by default)
+2. Check that the `busy_timeout` is set appropriately
+3. Wrap long-running operations in transactions
+4. Consider reducing the number of concurrent queue workers
+
+### Migration Issues
+
+If migrations aren't running:
+
+1. Verify the database file exists and is writable
+2. Check file permissions on the database directory
+3. Run migrations manually with `php artisan native:migrate`
+4. Review migration files for syntax errors
+
+### Performance Issues
+
+To optimize database performance:
+
+1. Add appropriate indexes to frequently queried columns
+2. Use `select()` to limit the columns retrieved
+3. Paginate large result sets
+4. Use eager loading to avoid N+1 query problems
+5. Consider using `chunk()` for processing large datasets

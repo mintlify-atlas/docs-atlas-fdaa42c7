@@ -1,0 +1,347 @@
+---
+title: Bundling Process
+description: Understand how NativePHP bundles your Laravel application, dependencies, and PHP runtime into native executables
+---
+
+## Overview
+
+The bundling process is the core of how NativePHP transforms your Laravel application into a distributable desktop application. It involves copying files, optimizing dependencies, bundling the PHP runtime, and packaging everything with Electron.
+
+## Build Directory Preparation
+
+NativePHP uses the `CopiesToBuildDirectory` trait to handle file operations:
+
+<Steps>
+  <Step title="Clean Previous Builds">
+    The build directory is completely removed and recreated to ensure a clean state.
+    
+    ```php
+    // src/Builder/Concerns/CopiesToBuildDirectory.php:37
+    $filesystem->remove($buildPath);
+    $filesystem->mkdir($buildPath);
+    ```
+  </Step>
+  
+  <Step title="Copy Application Files">
+    Your Laravel application is copied to `build/app/` using a recursive iterator that respects exclusion patterns.
+    
+    Files matching patterns in `cleanup_exclude_files` are automatically skipped during the copy process.
+  </Step>
+  
+  <Step title="Preserve File Permissions">
+    On Unix-like systems, file permissions are preserved during the copy.
+    
+    ```php
+    // src/Builder/Concerns/CopiesToBuildDirectory.php:79
+    if (PHP_OS_FAMILY !== 'Windows') {
+        $perms = fileperms($item->getPathname());
+        if ($perms !== false) {
+            chmod($target, $perms);
+        }
+    }
+    ```
+  </Step>
+  
+  <Step title="Create Required Directories">
+    Laravel requires certain directories to exist. NativePHP creates placeholder files to ensure Electron doesn't remove empty directories.
+    
+    ```php
+    // src/Builder/Concerns/CopiesToBuildDirectory.php:103
+    $filesystem->dumpFile("{$buildPath}/storage/framework/cache/_native.json", '{}');
+    $filesystem->dumpFile("{$buildPath}/storage/framework/sessions/_native.json", '{}');
+    $filesystem->dumpFile("{$buildPath}/storage/framework/views/_native.json", '{}');
+    $filesystem->dumpFile("{$buildPath}/storage/logs/_native.json", '{}');
+    ```
+  </Step>
+</Steps>
+
+<Note>
+Placeholder `_native.json` files prevent Electron Builder from removing empty but required Laravel directories.
+</Note>
+
+## File Filtering
+
+NativePHP uses PHP's `fnmatch()` function for glob-style pattern matching:
+
+```php
+// src/Builder/Concerns/CopiesToBuildDirectory.php:54
+foreach ($patterns as $pattern) {
+    if (fnmatch($pattern, $relativePath)) {
+        return false; // Skip this file
+    }
+}
+```
+
+### Common Exclusion Patterns
+
+| Pattern | What It Excludes |
+|---------|------------------|
+| `build` | The entire build directory |
+| `node_modules` | All Node.js dependencies |
+| `*/tests` | Test directories at any level |
+| `.git` | Git repository data |
+| `*.log` | All log files |
+
+## Dependency Optimization
+
+NativePHP optimizes your Composer dependencies for production using the `PrunesVendorDirectory` trait:
+
+```php
+// src/Builder/Concerns/PrunesVendorDirectory.php:14
+Process::path($this->buildPath('app'))
+    ->timeout(300)
+    ->run('composer install --no-dev')
+    ->throw();
+```
+
+<Steps>
+  <Step title="Install Production Dependencies">
+    Runs `composer install --no-dev` to remove development dependencies like PHPUnit, test libraries, and development tools.
+  </Step>
+  
+  <Step title="Remove Unnecessary Binaries">
+    Deletes `vendor/bin` and PHP binary packages that aren't needed in the bundled application.
+    
+    ```php
+    // src/Builder/Concerns/PrunesVendorDirectory.php:22
+    $filesystem->remove([
+        $this->buildPath('app/vendor/bin'),
+        $this->buildPath('app/vendor/nativephp/php-bin'),
+    ]);
+    ```
+  </Step>
+</Steps>
+
+<Warning>
+The `composer install --no-dev` command has a 300-second timeout. If you have many dependencies, ensure they can be installed within this timeframe.
+</Warning>
+
+## Environment File Management
+
+The `ManagesEnvFile` trait handles sensitive data cleanup:
+
+### Environment Cleanup Process
+
+```php
+// src/Builder/Concerns/ManagesEnvFile.php:31
+$contents = collect(file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES))
+    ->filter(function (string $line) use ($cleanUpKeys) {
+        $key = str($line)->before('=');
+        return ! $key->is($cleanUpKeys) && ! $key->startsWith('#');
+    })
+    ->push('LOG_CHANNEL=stack')
+    ->push('LOG_STACK=daily')
+    ->push('LOG_DAILY_DAYS=3')
+    ->push('LOG_LEVEL=warning')
+    ->join("\n");
+```
+
+<Steps>
+  <Step title="Remove Sensitive Keys">
+    Environment variables matching patterns in `cleanup_env_keys` are removed from the `.env` file.
+  </Step>
+  
+  <Step title="Remove Comments">
+    Lines starting with `#` are removed to clean up the environment file.
+  </Step>
+  
+  <Step title="Set Production Defaults">
+    Logging is automatically configured for production with appropriate retention and level settings.
+  </Step>
+</Steps>
+
+### Environment Manipulation Methods
+
+The `ManagesEnvFile` trait provides helpful methods:
+
+```php
+// Update an environment variable
+$builder->updateEnvFile('APP_ENV', 'production');
+
+// Remove specific keys
+$builder->removeFromEnvFile(['DEBUG_MODE', 'DEV_TOKEN']);
+
+// Get an environment value
+$value = $builder->getEnvValue('APP_NAME');
+```
+
+## PHP Binary Bundling
+
+NativePHP automatically bundles platform-specific PHP binaries during the Electron build:
+
+```javascript
+// resources/electron/electron-builder.mjs:68
+beforePack: async (context) => {
+    let arch = {
+        1: 'x64',
+        3: 'arm64'
+    }[context.arch];
+
+    console.log(`  • building php binary - exec php.js --${targetOs} --${arch}`);
+    exec(`node php.js --${targetOs} --${arch}`);
+}
+```
+
+<Info>
+The `beforePack` hook in Electron Builder ensures the correct PHP binary is downloaded and bundled for the target platform and architecture.
+</Info>
+
+## Pre and Post Processing
+
+The `HasPreAndPostProcessing` trait executes custom commands:
+
+```php
+// src/Builder/Concerns/HasPreAndPostProcessing.php:47
+$configCommands->each(function ($command) {
+    note("Running command: {$command}");
+
+    $result = Process::path(base_path())
+        ->timeout(300)
+        ->tty(\Symfony\Component\Process\Process::isTtySupported())
+        ->run($command, function (string $type, string $output) {
+            echo $output;
+        });
+
+    if (! $result->successful()) {
+        error("Command failed: {$command}");
+        return;
+    }
+});
+```
+
+### Command Features
+
+- **Live Output**: Command output is streamed in real-time
+- **TTY Support**: Commands run in TTY mode when supported
+- **Timeout Protection**: Each command has a 300-second timeout
+- **Error Handling**: Failed commands are logged but don't stop the build
+
+## Certificate Authority Bundling
+
+NativePHP includes the `CopiesCertificateAuthority` trait to bundle CA certificates for HTTPS requests:
+
+```php
+// Ensures your application can make secure HTTPS requests
+// even in sandboxed environments
+```
+
+<Note>
+CA certificates are automatically bundled to ensure your application can make secure HTTPS connections on all platforms.
+</Note>
+
+## Electron Packaging
+
+The final bundling step uses Electron Builder with configuration from `electron-builder.mjs`:
+
+### Resource Bundling
+
+```javascript
+// resources/electron/electron-builder.mjs:135
+extraResources: [
+    {
+        from: process.env.NATIVEPHP_BUILD_PATH,
+        to: 'build',
+        filter: ['**/*', '!{.git}']
+    }
+]
+```
+
+Your Laravel application from the build directory is packaged as an Electron resource, accessible at runtime.
+
+### Platform-Specific Packaging
+
+<Tabs>
+  <Tab title="Windows">
+    ```javascript
+    win: {
+        executableName: fileName,
+    },
+    nsis: {
+        artifactName: appName + '-${version}-setup.${ext}',
+        createDesktopShortcut: 'always',
+    }
+    ```
+    
+    Creates an NSIS installer with automatic desktop shortcut creation.
+  </Tab>
+  
+  <Tab title="macOS">
+    ```javascript
+    mac: {
+        entitlementsInherit: 'build/entitlements.mac.plist',
+        artifactName: appName + '-${version}-${arch}.${ext}',
+    },
+    dmg: {
+        artifactName: appName + '-${version}-${arch}.${ext}',
+    }
+    ```
+    
+    Creates a DMG installer with proper entitlements for sandboxing and notarization.
+  </Tab>
+  
+  <Tab title="Linux">
+    ```javascript
+    linux: {
+        target: ['AppImage', 'deb'],
+        maintainer: appUrl,
+        category: 'Utility',
+    }
+    ```
+    
+    Creates both AppImage (universal) and .deb (Debian/Ubuntu) packages.
+  </Tab>
+</Tabs>
+
+## Bundle Size Optimization
+
+Tips for reducing your application bundle size:
+
+<AccordionGroup>
+  <Accordion title="Exclude Development Files">
+    Ensure `node_modules`, `tests`, and development assets are in your `cleanup_exclude_files` configuration.
+  </Accordion>
+  
+  <Accordion title="Optimize Vendor Directory">
+    Use `composer install --no-dev` (automatic) and consider removing unused dependencies.
+  </Accordion>
+  
+  <Accordion title="Remove Build Artifacts">
+    Clean up compiled assets and temporary files in your `postbuild` scripts.
+  </Accordion>
+  
+  <Accordion title="Compress Assets">
+    Use Vite/Laravel Mix to minify and compress JavaScript and CSS assets.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+### Missing Required Directories
+
+**Issue**: Application crashes due to missing storage directories.
+
+**Solution**: NativePHP automatically creates `_native.json` placeholder files. Ensure you're not manually removing these.
+
+### Large Bundle Size
+
+**Issue**: Final executable is larger than expected.
+
+**Solution**: Review your `cleanup_exclude_files` configuration and ensure development dependencies are excluded.
+
+### Composer Install Timeout
+
+**Issue**: Composer install fails during bundling.
+
+**Solution**: The timeout is set to 300 seconds (5 minutes). Optimize your composer.json or increase the timeout in `PrunesVendorDirectory.php:15`.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Code Signing" icon="signature" href="/building/code-signing">
+    Sign your bundled applications for distribution
+  </Card>
+  
+  <Card title="Auto-Updates" icon="arrow-up" href="/features/auto-updater">
+    Configure automatic updates for your bundled apps
+  </Card>
+</CardGroup>

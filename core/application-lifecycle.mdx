@@ -1,0 +1,253 @@
+---
+title: Application Lifecycle
+description: Understanding the NativePHP Desktop application lifecycle and service provider
+---
+
+NativePHP Desktop integrates seamlessly with Laravel's application lifecycle through the `NativeServiceProvider`. This service provider orchestrates the entire native application setup, from registering core services to configuring the runtime environment.
+
+## Service Provider Registration
+
+The `NativeServiceProvider` extends Laravel's `PackageServiceProvider` and handles all package configuration and service registration.
+
+### Package Configuration
+
+The service provider configures the package during the `configurePackage` phase:
+
+```php
+public function configurePackage(Package $package): void
+{
+    $package
+        ->name('nativephp')
+        ->hasCommands([
+            DebugCommand::class,
+            FreshCommand::class,
+            MigrateCommand::class,
+            // ... additional commands
+        ])
+        ->hasConfigFile()
+        ->hasRoute('api')
+        ->publishesServiceProvider('NativeAppServiceProvider');
+}
+```
+
+## Core Service Bindings
+
+NativePHP binds several core contracts to their implementations during the `packageRegistered` lifecycle hook:
+
+<Tabs>
+  <Tab title="Window Manager">
+    ```php
+    $this->app->bind(WindowManagerContract::class, function (Foundation $app) {
+        return $app->make(WindowManagerImplementation::class);
+    });
+    ```
+  </Tab>
+  <Tab title="Global Shortcuts">
+    ```php
+    $this->app->bind(GlobalShortcutContract::class, function (Foundation $app) {
+        return $app->make(GlobalShortcutImplementation::class);
+    });
+    ```
+  </Tab>
+  <Tab title="Power Monitor">
+    ```php
+    $this->app->bind(PowerMonitorContract::class, function (Foundation $app) {
+        return $app->make(PowerMonitorImplementation::class);
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## Application Configuration
+
+When running as a native application, NativePHP automatically configures your Laravel app:
+
+<Steps>
+  <Step title="Environment Detection">
+    The service provider checks if the app is running as a native application:
+    ```php
+    if (config('nativephp-internal.running')) {
+        $this->configureApp();
+    }
+    ```
+  </Step>
+  
+  <Step title="Exception Handler">
+    Registers a custom exception handler for native applications:
+    ```php
+    $this->app->singleton(
+        \Illuminate\Contracts\Debug\ExceptionHandler::class,
+        Handler::class
+    );
+    ```
+  </Step>
+  
+  <Step title="Middleware Registration">
+    Automatically prevents browser access from outside the native app:
+    ```php
+    $this->app->make(Kernel::class)->pushMiddleware(
+        PreventRegularBrowserAccess::class,
+    );
+    ```
+  </Step>
+</Steps>
+
+## Runtime Configuration
+
+The `configureApp` method sets up the native runtime environment:
+
+```php
+protected function configureApp()
+{
+    if (config('app.debug')) {
+        app(LogWatcher::class)->register();
+    }
+
+    app(EventWatcher::class)->register();
+
+    $this->rewriteStoragePath();
+    $this->configureDisks();
+
+    config(['session.driver' => 'file']);
+    config(['queue.default' => 'database']);
+
+    if (! $this->app->runningInConsole()) {
+        $this->fireUpQueueWorkers();
+    }
+}
+```
+
+<Note>
+  The `EventWatcher` is registered automatically to enable event broadcasting between PHP and the native runtime.
+</Note>
+
+## Storage Path Configuration
+
+In production mode, NativePHP rewrites the storage path to use application-specific directories:
+
+```php
+protected function rewriteStoragePath()
+{
+    if (config('app.debug')) {
+        return;
+    }
+
+    $oldStoragePath = $this->app->storagePath();
+    $this->app->useStoragePath(config('nativephp-internal.storage_path'));
+
+    // Patch all config values that contain the old storage path
+    $config = Arr::dot(config()->all());
+
+    foreach ($config as $key => $value) {
+        if (is_string($value) && str_contains($value, $oldStoragePath)) {
+            $newValue = str_replace($oldStoragePath, config('nativephp-internal.storage_path'), $value);
+            config([$key => $newValue]);
+        }
+    }
+}
+```
+
+## Database Configuration
+
+NativePHP automatically configures SQLite as the default database:
+
+<Accordion title="Database Configuration Details">
+  ```php
+  public function rewriteDatabase()
+  {
+      $databasePath = config('nativephp-internal.database_path');
+
+      // Automatically create the database in development mode
+      if (config('app.debug')) {
+          $databasePath = database_path('nativephp.sqlite');
+
+          if (! file_exists($databasePath)) {
+              touch($databasePath);
+              Artisan::call('native:migrate');
+          }
+      }
+
+      config([
+          'database.connections.nativephp' => [
+              'driver' => 'sqlite',
+              'url' => env('DATABASE_URL'),
+              'database' => $databasePath,
+              'prefix' => '',
+              'foreign_key_constraints' => env('DB_FOREIGN_KEYS', true),
+          ],
+      ]);
+
+      config(['database.default' => 'nativephp']);
+      config(['queue.failed.database' => 'nativephp']);
+      config(['queue.batching.database' => 'nativephp']);
+
+      if (file_exists($databasePath)) {
+          DB::statement('PRAGMA journal_mode=WAL;');
+          DB::statement('PRAGMA busy_timeout=5000;');
+      }
+  }
+  ```
+</Accordion>
+
+<Warning>
+  The database is automatically created and migrated in debug mode. In production, ensure your database is properly set up before distribution.
+</Warning>
+
+## File System Disks
+
+NativePHP registers several platform-specific disk configurations:
+
+```php
+protected function configureDisks(): void
+{
+    $disks = [
+        'NATIVEPHP_USER_HOME_PATH' => 'user_home',
+        'NATIVEPHP_APP_DATA_PATH' => 'app_data',
+        'NATIVEPHP_USER_DATA_PATH' => 'user_data',
+        'NATIVEPHP_DESKTOP_PATH' => 'desktop',
+        'NATIVEPHP_DOCUMENTS_PATH' => 'documents',
+        'NATIVEPHP_DOWNLOADS_PATH' => 'downloads',
+        'NATIVEPHP_MUSIC_PATH' => 'music',
+        'NATIVEPHP_PICTURES_PATH' => 'pictures',
+        'NATIVEPHP_VIDEOS_PATH' => 'videos',
+        'NATIVEPHP_RECENT_PATH' => 'recent',
+        'NATIVEPHP_EXTRAS_PATH' => 'extras',
+    ];
+
+    foreach ($disks as $env => $disk) {
+        if (! env($env)) {
+            continue;
+        }
+
+        config([
+            'filesystems.disks.'.$disk => [
+                'driver' => 'local',
+                'root' => env($env, ''),
+                'throw' => false,
+                'links' => 'skip',
+            ],
+        ]);
+    }
+}
+```
+
+These disks give you convenient access to platform-specific directories like Desktop, Documents, and Downloads.
+
+## Queue Workers
+
+NativePHP automatically starts queue workers when not running in console mode:
+
+```php
+protected function fireUpQueueWorkers(): void
+{
+    $queueConfigs = QueueConfig::fromConfigArray(config('nativephp.queue_workers'));
+
+    foreach ($queueConfigs as $queueConfig) {
+        $this->app->make(QueueWorkerContract::class)->up($queueConfig);
+    }
+}
+```
+
+<Note>
+  Queue workers are essential for processing background tasks in your native application, including event handling and async operations.
+</Note>

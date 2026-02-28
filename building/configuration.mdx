@@ -1,0 +1,292 @@
+---
+title: Build Configuration
+description: Configure build settings, file exclusions, and platform-specific options for your NativePHP application
+---
+
+## Application Metadata
+
+Configure your application's metadata in `config/nativephp.php`:
+
+```php config/nativephp.php
+return [
+    /**
+     * The version of your app.
+     * Increment this value every time you release a new version.
+     */
+    'version' => env('NATIVEPHP_APP_VERSION', '1.0.0'),
+
+    /**
+     * The ID of your application. This should be a unique identifier
+     * usually in the form of a reverse domain name.
+     */
+    'app_id' => env('NATIVEPHP_APP_ID', 'com.nativephp.app'),
+
+    /**
+     * The author of your application.
+     */
+    'author' => env('NATIVEPHP_APP_AUTHOR'),
+
+    /**
+     * The copyright notice for your application.
+     */
+    'copyright' => env('NATIVEPHP_APP_COPYRIGHT'),
+
+    /**
+     * The description of your application.
+     */
+    'description' => env('NATIVEPHP_APP_DESCRIPTION', 'An awesome app built with NativePHP'),
+
+    /**
+     * The Website of your application.
+     */
+    'website' => env('NATIVEPHP_APP_WEBSITE', 'https://nativephp.com'),
+];
+```
+
+<Info>
+Store sensitive values in your `.env` file and reference them using the `env()` helper. These values are used by Electron Builder to generate platform-specific metadata.
+</Info>
+
+## File Exclusions
+
+Control which files and directories are excluded from your production build:
+
+```php config/nativephp.php
+return [
+    /**
+     * A list of files and folders that should be removed from the
+     * final app before it is bundled for production.
+     * You may use glob / wildcard patterns here.
+     */
+    'cleanup_exclude_files' => [
+        'build',
+        'temp',
+        'content',
+        'node_modules',
+        '*/tests',
+        '.git',
+        '.github',
+        'storage/logs/*.log',
+    ],
+];
+```
+
+### Pattern Matching
+
+File exclusions support glob patterns:
+
+- `build` - Excludes the entire build directory
+- `*/tests` - Excludes any tests directory at any level
+- `*.log` - Excludes all log files
+- `storage/logs/*` - Excludes all files in storage/logs
+
+<Warning>
+Be careful not to exclude files required for your application to run. Excluding critical directories like `vendor/` or `bootstrap/` will break your application.
+</Warning>
+
+## File Inclusions
+
+You can also explicitly include files that might have been excluded:
+
+```php config/nativephp.php
+return [
+    /**
+     * A list of files and folders that should be included in the
+     * final app even if they match exclusion patterns.
+     */
+    'cleanup_include_files' => [
+        'node_modules/specific-package/**',
+        'storage/app/required-file.json',
+    ],
+];
+```
+
+<Note>
+Included files are copied after the main copy operation, so they can override exclusion rules.
+</Note>
+
+## Environment Variable Cleanup
+
+Protect sensitive information by removing specific environment variables from production builds:
+
+```php config/nativephp.php
+return [
+    /**
+     * A list of environment keys that should be removed from the
+     * .env file when the application is bundled for production.
+     * You may use wildcards to match multiple keys.
+     */
+    'cleanup_env_keys' => [
+        'AWS_*',                    // All AWS credentials
+        'AZURE_*',                  // All Azure credentials
+        'GITHUB_*',                 // All GitHub tokens
+        'DO_SPACES_*',              // DigitalOcean Spaces
+        '*_SECRET',                 // Any key ending with _SECRET
+        'BIFROST_*',                // Build system credentials
+        'NATIVEPHP_UPDATER_PATH',
+        'NATIVEPHP_APPLE_ID',
+        'NATIVEPHP_APPLE_ID_PASS',
+        'NATIVEPHP_APPLE_TEAM_ID',
+    ],
+];
+```
+
+### Automatic Logging Configuration
+
+NativePHP automatically configures logging for production builds by:
+
+1. Removing development logging configurations
+2. Setting `LOG_CHANNEL=stack`
+3. Setting `LOG_STACK=daily`
+4. Setting `LOG_DAILY_DAYS=3`
+5. Setting `LOG_LEVEL=warning`
+
+This ensures appropriate logging for end-user installations without exposing sensitive debug information.
+
+## Custom PHP Binary
+
+Specify a custom PHP binary path if you need a specific PHP version or configuration:
+
+```php config/nativephp.php
+return [
+    /**
+     * Custom PHP binary path.
+     */
+    'binary_path' => env('NATIVEPHP_PHP_BINARY_PATH', null),
+];
+```
+
+```bash .env
+NATIVEPHP_PHP_BINARY_PATH=/path/to/custom/php
+```
+
+<Info>
+If not specified, NativePHP automatically downloads and bundles the appropriate PHP binary for each target platform and architecture.
+</Info>
+
+## Pre and Post Build Hooks
+
+Execute custom commands before and after the build process:
+
+```php config/nativephp.php
+return [
+    /**
+     * Define your own scripts to run before and after the build process.
+     */
+    'prebuild' => [
+        'npm run build',              // Build frontend assets
+        'php artisan config:cache',   // Cache configuration
+        'php artisan route:cache',    // Cache routes
+        'php artisan view:cache',     // Cache views
+    ],
+
+    'postbuild' => [
+        'rm -rf public/hot',          // Remove Vite hot file
+        'php artisan optimize:clear', // Clear optimization (if needed)
+    ],
+];
+```
+
+### Command Execution
+
+- Commands run sequentially in the order defined
+- Each command has a 300-second timeout
+- Commands run from your application's base path
+- If a command fails, an error is logged but the build continues
+
+<Warning>
+Ensure your build commands are idempotent and don't require interactive input. Failed commands will log errors but won't stop the build process.
+</Warning>
+
+## Electron Builder Configuration
+
+Advanced Electron Builder options are configured in `resources/electron/electron-builder.mjs`. Key configurations include:
+
+### Windows Configuration
+
+```javascript electron-builder.mjs
+win: {
+    executableName: fileName,
+},
+nsis: {
+    artifactName: appName + '-${version}-setup.${ext}',
+    shortcutName: '${productName}',
+    uninstallDisplayName: '${productName}',
+    createDesktopShortcut: 'always',
+}
+```
+
+### macOS Configuration
+
+```javascript electron-builder.mjs
+mac: {
+    entitlementsInherit: 'build/entitlements.mac.plist',
+    artifactName: appName + '-${version}-${arch}.${ext}',
+    extendInfo: {
+        NSCameraUsageDescription: "Application requests access to the device's camera.",
+        NSMicrophoneUsageDescription: "Application requests access to the device's microphone.",
+        NSDocumentsFolderUsageDescription: "Application requests access to the user's Documents folder.",
+        NSDownloadsFolderUsageDescription: "Application requests access to the user's Downloads folder.",
+    },
+}
+```
+
+### Linux Configuration
+
+```javascript electron-builder.mjs
+linux: {
+    target: ['AppImage', 'deb'],
+    maintainer: appUrl,
+    category: 'Utility',
+}
+```
+
+<Note>
+Modifying `electron-builder.mjs` requires understanding Electron Builder's configuration options. Refer to the [Electron Builder documentation](https://www.electron.build/) for advanced customization.
+</Note>
+
+## Deep Linking
+
+Enable deep linking to allow other applications to open your app with custom URLs:
+
+```php config/nativephp.php
+return [
+    /**
+     * If your application allows deep linking, you can specify the scheme
+     * to use here. This is the scheme that will be used to open your
+     * application from within other applications.
+     */
+    'deeplink_scheme' => env('NATIVEPHP_DEEPLINK_SCHEME', 'myapp'),
+];
+```
+
+With this configuration, URLs like `myapp://some/path` will open your application.
+
+## Build Path Configuration
+
+By default, NativePHP uses the `build/` directory in your application root. You can customize this programmatically:
+
+```php
+use Native\Desktop\Builder\Builder;
+
+$builder = Builder::make(
+    buildPath: '/custom/build/path',
+    sourcePath: base_path()
+);
+```
+
+<Info>
+The `Builder` class (src/Builder/Builder.php:24) accepts optional `buildPath` and `sourcePath` parameters for advanced build scenarios.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Bundling Process" icon="box" href="/building/bundling">
+    Learn how NativePHP bundles your application and dependencies
+  </Card>
+  
+  <Card title="Code Signing" icon="signature" href="/building/code-signing">
+    Configure code signing for macOS and Windows
+  </Card>
+</CardGroup>

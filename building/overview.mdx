@@ -1,0 +1,161 @@
+---
+title: Building Overview
+description: Learn how NativePHP builds your Laravel application into native desktop executables for Windows, macOS, and Linux
+---
+
+## Introduction
+
+NativePHP provides a comprehensive build system that transforms your Laravel application into production-ready native desktop applications. The build process handles everything from copying your application files to bundling PHP binaries and creating platform-specific installers.
+
+## How Building Works
+
+The build process involves several key steps:
+
+<Steps>
+  <Step title="Prepare Build Directory">
+    NativePHP creates a clean build directory and copies your application files, excluding development dependencies and sensitive files.
+  </Step>
+  
+  <Step title="Environment Cleanup">
+    Sensitive environment variables and development keys are removed from your `.env` file for production distribution.
+  </Step>
+  
+  <Step title="Optimize Dependencies">
+    Composer dependencies are optimized with `--no-dev` flag, removing development packages to reduce bundle size.
+  </Step>
+  
+  <Step title="Bundle PHP Runtime">
+    Platform-specific PHP binaries are downloaded and bundled with your application.
+  </Step>
+  
+  <Step title="Create Executable">
+    Electron Builder packages everything into native executables and installers for your target platforms.
+  </Step>
+</Steps>
+
+## Build Targets
+
+NativePHP supports building for multiple platforms and architectures:
+
+### Windows
+- **x64** - 64-bit Windows applications
+- **Installer formats** - NSIS installer with desktop shortcuts
+
+### macOS
+- **x64** - Intel-based Macs
+- **arm64** - Apple Silicon (M1/M2/M3)
+- **Installer formats** - DMG disk images and .app bundles
+
+### Linux
+- **x64** - 64-bit Linux distributions
+- **arm64** - ARM-based Linux systems
+- **Installer formats** - AppImage and .deb packages
+
+## Build Commands
+
+NativePHP uses npm scripts defined in the Electron resources to handle building:
+
+```bash
+# Build for all platforms
+npm run build:all
+
+# Build for specific platforms
+npm run build:mac
+npm run build:win
+npm run build:linux
+
+# Build for specific architectures
+npm run build:mac-arm64
+npm run build:mac-x64
+npm run build:win-x64
+npm run build:linux-x64
+npm run build:linux-arm64
+```
+
+<Info>
+All build commands use the `-p never` flag to prevent automatic publishing. Use `publish:*` commands when ready to distribute.
+</Info>
+
+## Build Output
+
+Built applications are output to the `nativephp/electron/dist` directory in your Laravel application:
+
+```
+your-app/
+├── nativephp/
+│   └── electron/
+│       └── dist/
+│           ├── YourApp-1.0.0-setup.exe      # Windows installer
+│           ├── YourApp-1.0.0-arm64.dmg      # macOS ARM installer
+│           ├── YourApp-1.0.0-x64.dmg        # macOS Intel installer
+│           ├── YourApp-1.0.0.AppImage       # Linux AppImage
+│           └── YourApp-1.0.0.deb            # Linux Debian package
+```
+
+## Build Directory Structure
+
+During the build process, NativePHP creates a temporary build directory:
+
+```
+build/
+├── app/                    # Your Laravel application
+│   ├── app/
+│   ├── bootstrap/
+│   ├── config/
+│   ├── public/
+│   ├── resources/
+│   ├── routes/
+│   ├── storage/
+│   ├── vendor/            # Production dependencies only
+│   └── .env               # Cleaned environment file
+└── php/                   # Platform-specific PHP binaries
+```
+
+<Note>
+The build directory is automatically cleaned before each build to ensure a fresh start.
+</Note>
+
+## Pre and Post Build Scripts
+
+You can define custom scripts to run before and after the build process in your `config/nativephp.php`:
+
+```php
+return [
+    'prebuild' => [
+        'npm run build',              // Build frontend assets
+        'php artisan optimize',       // Optimize Laravel
+    ],
+    
+    'postbuild' => [
+        'rm -rf public/build',        // Clean up temporary files
+    ],
+];
+```
+
+<Warning>
+Pre and post build scripts run with a 300-second timeout. Ensure your scripts complete within this timeframe.
+</Warning>
+
+## File Exclusions
+
+NativePHP automatically excludes certain files and directories from your build to reduce bundle size and improve security. See the [Configuration](/building/configuration) page for details on customizing exclusions.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Build Configuration" icon="gear" href="/building/configuration">
+    Configure build settings, file exclusions, and platform-specific options
+  </Card>
+  
+  <Card title="Bundling Process" icon="box" href="/building/bundling">
+    Understand how NativePHP bundles your application and dependencies
+  </Card>
+  
+  <Card title="Code Signing" icon="signature" href="/building/code-signing">
+    Sign your applications for macOS and Windows distribution
+  </Card>
+  
+  <Card title="Auto-Updates" icon="arrow-up" href="/features/auto-updater">
+    Configure automatic updates for your distributed applications
+  </Card>
+</CardGroup>

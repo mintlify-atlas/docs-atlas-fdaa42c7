@@ -1,0 +1,261 @@
+---
+title: System Tray & Menu Bar
+description: Add your application to the system tray or macOS menu bar
+---
+
+NativePHP Desktop allows you to create a system tray icon (Windows/Linux) or menu bar icon (macOS) that provides quick access to your application.
+
+## Creating a Menu Bar
+
+### Basic Setup
+
+Create a simple menu bar with an icon:
+
+```php
+use Native\Desktop\Facades\MenuBar;
+
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->url('/')
+    ->width(400)
+    ->height(300);
+```
+
+### Setting the Icon
+
+The icon should be a small, simple image that works well at small sizes:
+
+```php
+MenuBar::create()
+    ->icon(public_path('images/tray-icon.png'))
+    ->url('/dashboard');
+```
+
+<Note>
+For best results, use a 16x16 or 22x22 pixel PNG image with transparency. On macOS, template images (black and transparent) work best as they automatically adapt to light and dark modes.
+</Note>
+
+## Menu Bar Window
+
+### URL and Content
+
+Set which URL to display when the menu bar is clicked:
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/menubar-icon.png'))
+    ->url('/quick-actions')
+    ->width(300)
+    ->height(400);
+```
+
+### Window Dimensions
+
+Customize the size of the menu bar window:
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->width(500)
+    ->height(600)
+    ->resizable(false); // Prevent resizing
+```
+
+### Window Positioning
+
+Control where the window appears:
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->windowPosition('trayCenter') // Position relative to tray icon
+    ->url('/');
+```
+
+## Menu Bar Options
+
+### Label
+
+Add a text label next to the icon (macOS):
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->label('My App')
+    ->url('/');
+```
+
+### Tooltip
+
+Add a tooltip that appears on hover:
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->tooltip('Click to open My Application')
+    ->url('/');
+```
+
+### Always on Top
+
+Keep the menu bar window above other windows:
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->alwaysOnTop()
+    ->url('/');
+```
+
+### Show on All Workspaces
+
+Make the menu bar window visible on all virtual desktops:
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->showOnAllWorkspaces()
+    ->url('/');
+```
+
+## Context Menu
+
+### Adding a Context Menu
+
+Provide a context menu when right-clicking the menu bar icon:
+
+```php
+use Native\Desktop\Facades\MenuBar;
+use Native\Desktop\Menu\Menu;
+
+$menu = Menu::new()
+    ->label('My App')
+    ->submenu(
+        Menu::new()->label('Open')->event('menubar.open'),
+        Menu::new()->label('Settings')->event('menubar.settings'),
+        Menu::new()->separator(),
+        Menu::new()->label('Quit')->event('menubar.quit')
+    );
+
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->withContextMenu($menu)
+    ->url('/');
+```
+
+### Context Menu Only
+
+Show only the context menu without a window:
+
+```php
+$menu = Menu::new()
+    ->submenu(
+        Menu::new()->label('Dashboard')->event('open.dashboard'),
+        Menu::new()->label('Settings')->event('open.settings'),
+        Menu::new()->separator(),
+        Menu::new()->label('Quit')->event('app.quit')
+    );
+
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->onlyShowContextMenu()
+    ->withContextMenu($menu);
+```
+
+## Appearance Customization
+
+### Vibrancy (macOS)
+
+Add a vibrancy effect to the menu bar window:
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->vibrancy('light')
+    ->url('/');
+```
+
+### Transparency
+
+Make the window background transparent:
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->transparent()
+    ->url('/');
+```
+
+### Background Color
+
+Set a custom background color:
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->backgroundColor('#1a1a1a')
+    ->url('/');
+```
+
+## macOS Specific Options
+
+### Show Dock Icon
+
+Show the application in the macOS dock when menu bar is active:
+
+```php
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->showDockIcon()
+    ->url('/');
+```
+
+## Complete Example
+
+```php
+use Native\Desktop\Facades\MenuBar;
+use Native\Desktop\Menu\Menu;
+
+class MenuBarServiceProvider extends ServiceProvider
+{
+    public function boot()
+    {
+        $contextMenu = Menu::new()
+            ->submenu(
+                Menu::new()->label('Dashboard')->event('menubar.dashboard'),
+                Menu::new()->label('Quick Capture')->event('menubar.capture'),
+                Menu::new()->separator(),
+                Menu::new()->label('Preferences')->event('menubar.preferences'),
+                Menu::new()->separator(),
+                Menu::new()->label('Quit')->event('menubar.quit')
+            );
+
+        MenuBar::create()
+            ->icon(storage_path('app/menubar-icon.png'))
+            ->tooltip('My Application')
+            ->width(400)
+            ->height(500)
+            ->resizable(false)
+            ->alwaysOnTop()
+            ->vibrancy('sidebar')
+            ->withContextMenu($contextMenu)
+            ->url('/menubar');
+    }
+}
+```
+
+## Handling Menu Events
+
+Listen for menu bar events in your application:
+
+```php
+use Native\Desktop\Events\MenuBar\MenuBarContextMenuOpened;
+
+Event::listen(function (MenuBarContextMenuOpened $event) {
+    // Handle menu opened
+});
+```
+
+<Warning>
+The menu bar feature is designed for lightweight, always-accessible functionality. Avoid loading heavy content or complex interfaces in the menu bar window.
+</Warning>

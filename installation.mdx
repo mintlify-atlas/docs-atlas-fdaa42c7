@@ -1,0 +1,235 @@
+---
+title: Installation
+description: Install NativePHP Desktop in your Laravel application
+---
+
+# Installation
+
+Get NativePHP Desktop up and running in your Laravel application in just a few steps.
+
+## Prerequisites
+
+Before installing NativePHP Desktop, ensure you have:
+
+<CardGroup cols={2}>
+  <Card title="PHP 8.3+" icon="php">
+    NativePHP requires PHP version 8.3 or higher
+  </Card>
+  
+  <Card title="Laravel 10+" icon="laravel">
+    Compatible with Laravel 10.x, 11.x, and 12.x
+  </Card>
+  
+  <Card title="Composer" icon="box">
+    For managing PHP dependencies
+  </Card>
+  
+  <Card title="ext-zip" icon="file-zipper">
+    PHP zip extension must be enabled
+  </Card>
+</CardGroup>
+
+<Warning>
+  **Package Conflicts**: NativePHP Desktop cannot be installed alongside `nativephp/mobile`, `nativephp/laravel`, or `nativephp/electron`. Only one NativePHP package should be used per project.
+</Warning>
+
+## Step 1: Install via Composer
+
+Install the NativePHP Desktop package using Composer:
+
+```bash
+composer require nativephp/desktop
+```
+
+This will install:
+
+- The `nativephp/desktop` package
+- Required dependencies including `nativephp/php-bin` for embedded PHP runtime
+- Laravel package tools and utilities
+
+<Note>
+  The installation may take a few moments as it downloads the embedded PHP binaries for desktop distribution.
+</Note>
+
+## Step 2: Publish Configuration
+
+Publish the NativePHP configuration file and service provider:
+
+```bash
+php artisan vendor:publish --provider="Native\Desktop\NativeServiceProvider"
+```
+
+This creates:
+
+- `config/nativephp.php` - Main configuration file
+- `app/Providers/NativeAppServiceProvider.php` - Your application's native service provider
+
+<Steps>
+  <Step title="Configuration File">
+    The `config/nativephp.php` file contains settings for your application metadata, updater configuration, and build options.
+  </Step>
+  
+  <Step title="Service Provider">
+    The `NativeAppServiceProvider` is where you'll bootstrap your application, configure windows, menus, and handle application lifecycle events.
+  </Step>
+</Steps>
+
+## Step 3: Verify Installation
+
+Verify that NativePHP Desktop is correctly installed by checking the available Artisan commands:
+
+```bash
+php artisan list native
+```
+
+You should see several `native:*` commands available:
+
+```
+Available commands:
+  native:debug    Debug NativePHP application
+  native:fresh    Drop all tables and re-run migrations
+  native:migrate  Run database migrations
+  native:seed     Seed the database
+  native:wipe     Wipe the NativePHP database
+```
+
+## Package Overview
+
+### Automatic Registration
+
+NativePHP Desktop automatically registers these facades for use in your application:
+
+<CodeGroup>
+```php Native\Desktop\Facades\Window
+use Native\Desktop\Facades\Window;
+
+// Open a new window
+Window::open()
+    ->title('My App')
+    ->width(800)
+    ->height(600);
+```
+
+```php Native\Desktop\Facades\Notification
+use Native\Desktop\Facades\Notification;
+
+// Show a native notification
+Notification::new()
+    ->title('Welcome!')
+    ->message('Your app is ready')
+    ->show();
+```
+
+```php Native\Desktop\Facades\Menu
+use Native\Desktop\Facades\Menu;
+
+// Create application menus
+Menu::new()
+    ->label('File')
+    ->items([
+        MenuItem::new('New', 'file.new'),
+        MenuItem::new('Open', 'file.open'),
+    ]);
+```
+</CodeGroup>
+
+### Available Facades
+
+NativePHP provides the following facades out of the box:
+
+- `ChildProcess` - Spawn and manage child processes
+- `Clipboard` - Access system clipboard
+- `ContextMenu` - Create context menus
+- `Dock` - Control macOS dock (macOS only)
+- `GlobalShortcut` - Register global keyboard shortcuts
+- `Menu` - Create application menus
+- `MenuBar` - Create menu bar applications
+- `Notification` - Show native notifications
+- `PowerMonitor` - Monitor system power events
+- `Process` - Manage application processes
+- `QueueWorker` - Background queue workers
+- `Screen` - Get display information
+- `Settings` - Persistent application settings
+- `Shell` - Execute shell commands
+- `System` - Access system information
+- `Window` - Manage application windows
+- `Updater` - Handle application updates
+
+## Development vs Production
+
+NativePHP Desktop works differently in development and production:
+
+### Development Mode
+
+In development (`APP_DEBUG=true`), NativePHP:
+
+- Uses your local PHP installation
+- Creates a SQLite database at `database/nativephp.sqlite`
+- Automatically runs migrations
+- Shows developer tools in windows
+- Provides detailed error messages
+
+### Production Mode
+
+In production (after building), NativePHP:
+
+- Bundles an embedded PHP runtime
+- Uses an isolated storage directory
+- Hides developer tools
+- Cleans up sensitive environment variables
+- Optimizes for performance
+
+<Note>
+  You can develop and test your application locally before building it for distribution. See the [Quick Start](/quickstart) guide to run your first desktop app.
+</Note>
+
+## Next Steps
+
+Now that NativePHP Desktop is installed:
+
+<CardGroup cols={2}>
+  <Card title="Configuration" icon="gear" href="/configuration">
+    Configure your application settings and metadata
+  </Card>
+  
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Build your first desktop application
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+### ext-zip Not Installed
+
+If you get an error about the `ext-zip` extension:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get install php-zip
+
+# macOS (via Homebrew)
+pecl install zip
+
+# Windows
+# Enable extension=zip in php.ini
+```
+
+### Composer Memory Issues
+
+If Composer runs out of memory during installation:
+
+```bash
+php -d memory_limit=-1 $(which composer) require nativephp/desktop
+```
+
+### Package Conflicts
+
+If you have other NativePHP packages installed:
+
+```bash
+# Remove conflicting packages first
+composer remove nativephp/mobile nativephp/laravel nativephp/electron
+
+# Then install NativePHP Desktop
+composer require nativephp/desktop
+```

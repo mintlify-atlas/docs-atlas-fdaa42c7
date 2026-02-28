@@ -1,0 +1,367 @@
+---
+title: Window Management
+description: Understanding window lifecycle, creation, and management in NativePHP Desktop
+---
+
+Windows are the primary interface for your NativePHP Desktop application. The `WindowManager` provides a fluent API for creating, configuring, and controlling application windows.
+
+## Window Manager
+
+The `WindowManager` is the central service for all window operations:
+
+```php
+use Native\Desktop\Facades\Window;
+
+// Access via facade
+Window::open('settings')
+    ->title('Settings')
+    ->width(800)
+    ->height(600);
+```
+
+## Creating Windows
+
+Windows are created using the fluent `PendingOpenWindow` API:
+
+<Steps>
+  <Step title="Open a Window">
+    The `open()` method returns a `PendingOpenWindow` instance:
+    ```php
+    public function open(string $id = 'main')
+    {
+        return (new PendingOpenWindow($id))->setClient($this->client);
+    }
+    ```
+  </Step>
+  
+  <Step title="Configure the Window">
+    Chain configuration methods to customize the window:
+    ```php
+    Window::open('main')
+        ->title('My Application')
+        ->width(1200)
+        ->height(800)
+        ->resizable(true)
+        ->alwaysOnTop(false);
+    ```
+  </Step>
+  
+  <Step title="Window Opens Automatically">
+    The window opens when the `PendingOpenWindow` is destructed:
+    ```php
+    public function __destruct()
+    {
+        $this->open();
+    }
+    ```
+  </Step>
+</Steps>
+
+<Note>
+  You don't need to explicitly call a method to open the window. It opens automatically when the fluent chain completes.
+</Note>
+
+## Window Configuration
+
+The `Window` class provides extensive configuration options:
+
+### Basic Properties
+
+<Tabs>
+  <Tab title="Title & URL">
+    ```php
+    Window::open('main')
+        ->title('My App')
+        ->url(route('dashboard'));
+    ```
+  </Tab>
+  <Tab title="Dimensions">
+    ```php
+    Window::open('main')
+        ->width(1024)
+        ->height(768)
+        ->minWidth(800)
+        ->minHeight(600)
+        ->maxWidth(1920)
+        ->maxHeight(1080);
+    ```
+  </Tab>
+  <Tab title="Position">
+    ```php
+    Window::open('main')
+        ->x(100)
+        ->y(100)
+        ->position(200, 200);
+    ```
+  </Tab>
+</Tabs>
+
+### Window Behavior
+
+```php
+Window::open('main')
+    ->resizable(true)        // Allow resizing
+    ->movable(true)          // Allow moving
+    ->minimizable(true)      // Show minimize button
+    ->maximizable(true)      // Show maximize button
+    ->closable(true)         // Show close button
+    ->focusable(true)        // Allow focus
+    ->alwaysOnTop(false);    // Stay on top
+```
+
+### Visual Styling
+
+<Accordion title="Title Bar Styles">
+  NativePHP supports various title bar styles:
+
+  ```php
+  // Default title bar
+  Window::open('main')
+      ->titleBarStyle('default');
+
+  // Hidden title bar
+  Window::open('main')
+      ->titleBarHidden();
+
+  // Hidden inset title bar (macOS)
+  Window::open('main')
+      ->titleBarHiddenInset();
+
+  // Buttons on hover
+  Window::open('main')
+      ->titleBarButtonsOnHover();
+  ```
+</Accordion>
+
+<Accordion title="Frameless Windows">
+  Create custom-styled windows without the default frame:
+
+  ```php
+  Window::open('splash')
+      ->frameless()           // Remove window frame
+      ->transparent()         // Transparent background
+      ->hasShadow(false);    // Disable shadow
+
+  // Or create an invisible frameless window
+  Window::open('overlay')
+      ->invisibleFrameless();
+  ```
+
+  The `invisibleFrameless()` method is a shortcut:
+  ```php
+  public function invisibleFrameless(): self
+  {
+      return $this
+          ->frameless()
+          ->transparent()
+          ->focusable(false)
+          ->hasShadow(false);
+  }
+  ```
+</Accordion>
+
+### Advanced Features
+
+```php
+Window::open('main')
+    ->rememberState()           // Remember position/size
+    ->fullscreen(false)         // Start in fullscreen
+    ->fullscreenable(true)      // Allow fullscreen toggle
+    ->kiosk(false)              // Kiosk mode
+    ->showDevTools(true)        // Open DevTools automatically
+    ->zoomFactor(1.5)           // Zoom level
+    ->hideMenu(true)            // Auto-hide menu bar
+    ->skipTaskbar(false)        // Hide from taskbar
+    ->hiddenInMissionControl(false); // Hide from Mission Control (macOS)
+```
+
+<Warning>
+  The `showDevTools` option is automatically set to `config('app.debug')` by default. Ensure it's disabled in production.
+</Warning>
+
+## Window Control Methods
+
+The `WindowManager` provides methods to control existing windows:
+
+### Visibility Control
+
+```php
+// Show a window
+Window::show('main');
+
+// Hide a window
+Window::hide('settings');
+
+// Close a window
+Window::close('about');
+```
+
+### Size & Position
+
+```php
+// Resize a window
+Window::resize(1024, 768, 'main');
+
+// Move a window (with optional animation)
+Window::position(100, 100, animated: true, id: 'main');
+
+// Maximize a window
+Window::maximize('main');
+
+// Minimize a window
+Window::minimize('main');
+```
+
+### Window State
+
+```php
+// Set always on top
+Window::alwaysOnTop(true, 'main');
+
+// Reload window content
+Window::reload('main');
+```
+
+## Retrieving Windows
+
+Access information about existing windows:
+
+<Tabs>
+  <Tab title="Current Window">
+    ```php
+    $window = Window::current();
+
+    // Returns a Window instance with current state
+    echo $window->id;       // 'main'
+    echo $window->width;    // 1024
+    echo $window->height;   // 768
+    ```
+  </Tab>
+  <Tab title="All Windows">
+    ```php
+    $windows = Window::all();
+
+    foreach ($windows as $window) {
+        echo $window->id;
+        echo $window->title;
+    }
+    ```
+  </Tab>
+  <Tab title="Specific Window">
+    ```php
+    $window = Window::get('settings');
+
+    if ($window->focused) {
+        // Window has focus
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Navigation Control
+
+Control how users navigate within windows:
+
+```php
+Window::open('browser')
+    ->preventLeaveDomain(true)   // Restrict to current domain
+    ->preventLeavePage(true)     // Prevent all navigation
+    ->suppressNewWindows();      // Block window.open() calls
+```
+
+<Note>
+  These options are useful for creating controlled environments or preventing users from navigating away from your app.
+</Note>
+
+## After Open Callbacks
+
+Execute code after a window opens:
+
+```php
+Window::open('main')
+    ->afterOpen(function ($window) {
+        // Window is now open
+        Log::info('Window opened: ' . $window->getId());
+    })
+    ->afterOpen(function ($window) {
+        // Multiple callbacks are supported
+        Window::maximize($window->getId());
+    });
+```
+
+## Web Preferences
+
+Configure Electron web preferences:
+
+```php
+Window::open('secure')
+    ->webPreferences([
+        'nodeIntegration' => false,
+        'contextIsolation' => true,
+        'sandbox' => true,
+    ]);
+```
+
+## Platform-Specific Options
+
+### macOS
+
+```php
+Window::open('main')
+    // Position of traffic light buttons
+    ->trafficLightPosition(20, 20)
+    
+    // Hide traffic light buttons
+    ->trafficLightsHidden()
+    
+    // Control button visibility
+    ->windowButtonVisibility(true)
+    
+    // Vibrancy effect
+    ->vibrancy('dark');
+```
+
+## Window ID Detection
+
+The `WindowManager` can auto-detect the current window ID:
+
+```php
+// From within a window, you can omit the ID
+Window::close();      // Closes current window
+Window::maximize();   // Maximizes current window
+```
+
+This uses the `DetectsWindowId` trait:
+```php
+use DetectsWindowId;
+
+public function close($id = null)
+{
+    $this->client->post('window/close', [
+        'id' => $id ?? $this->detectId(),
+    ]);
+}
+```
+
+## Complete Example
+
+Here's a comprehensive example creating a settings window:
+
+```php
+use Native\Desktop\Facades\Window;
+
+Window::open('settings')
+    ->title('Application Settings')
+    ->width(900)
+    ->height(700)
+    ->minWidth(800)
+    ->minHeight(600)
+    ->resizable(true)
+    ->maximizable(false)
+    ->alwaysOnTop(true)
+    ->url(route('settings.index'))
+    ->rememberState()
+    ->afterOpen(function ($window) {
+        Log::info('Settings window opened');
+    });
+```

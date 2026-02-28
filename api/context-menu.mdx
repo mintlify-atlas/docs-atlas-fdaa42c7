@@ -1,0 +1,210 @@
+---
+title: ContextMenu
+description: Create and manage context menus in NativePHP Desktop
+---
+
+The ContextMenu API allows you to create native context menus that appear when users right-click within your application.
+
+## Basic Usage
+
+```php
+use Native\Desktop\Facades\ContextMenu;
+use Native\Desktop\Facades\Menu;
+use Native\Desktop\Menu\Items\Label;
+use Native\Desktop\Menu\Items\Separator;
+
+$menu = Menu::make(
+    Label::make('Cut')->accelerator('CmdOrCtrl+X'),
+    Label::make('Copy')->accelerator('CmdOrCtrl+C'),
+    Label::make('Paste')->accelerator('CmdOrCtrl+V'),
+    Separator::make(),
+    Label::make('Select All')->accelerator('CmdOrCtrl+A')
+);
+
+ContextMenu::register($menu);
+```
+
+## Methods
+
+### register
+
+Register a context menu that will appear on right-click.
+
+<ParamField path="menu" type="Menu" required>
+  A Menu instance containing the context menu items
+</ParamField>
+
+```php
+use Native\Desktop\Facades\ContextMenu;
+use Native\Desktop\Facades\Menu;
+use Native\Desktop\Menu\Items\Label;
+
+$contextMenu = Menu::make(
+    Label::make('Option 1')->event('option1.clicked'),
+    Label::make('Option 2')->event('option2.clicked')
+);
+
+ContextMenu::register($contextMenu);
+```
+
+### remove
+
+Remove the currently registered context menu.
+
+```php
+ContextMenu::remove();
+```
+
+## Examples
+
+### Basic Context Menu
+
+```php
+use Native\Desktop\Facades\ContextMenu;
+use Native\Desktop\Facades\Menu;
+use Native\Desktop\Menu\Items\Label;
+use Native\Desktop\Menu\Items\Separator;
+
+$menu = Menu::make(
+    Label::make('Refresh')->accelerator('F5')->event('app.refresh'),
+    Separator::make(),
+    Label::make('Settings')->event('settings.open')
+);
+
+ContextMenu::register($menu);
+```
+
+### Text Editor Context Menu
+
+```php
+use Native\Desktop\Facades\ContextMenu;
+use Native\Desktop\Facades\Menu;
+use Native\Desktop\Menu\Items\Label;
+use Native\Desktop\Menu\Items\Separator;
+
+$editMenu = Menu::make(
+    Label::make('Undo')->accelerator('CmdOrCtrl+Z')->event('edit.undo'),
+    Label::make('Redo')->accelerator('CmdOrCtrl+Shift+Z')->event('edit.redo'),
+    Separator::make(),
+    Label::make('Cut')->accelerator('CmdOrCtrl+X')->event('edit.cut'),
+    Label::make('Copy')->accelerator('CmdOrCtrl+C')->event('edit.copy'),
+    Label::make('Paste')->accelerator('CmdOrCtrl+V')->event('edit.paste'),
+    Separator::make(),
+    Label::make('Select All')->accelerator('CmdOrCtrl+A')->event('edit.selectAll')
+);
+
+ContextMenu::register($editMenu);
+```
+
+### Context Menu with Submenus
+
+```php
+use Native\Desktop\Facades\ContextMenu;
+use Native\Desktop\Facades\Menu;
+use Native\Desktop\Menu\Items\Label;
+use Native\Desktop\Menu\Items\Separator;
+
+$menu = Menu::make(
+    Label::make('New')
+        ->submenu(
+            Label::make('File')->event('file.new'),
+            Label::make('Folder')->event('folder.new'),
+            Label::make('Project')->event('project.new')
+        ),
+    Separator::make(),
+    Label::make('Open')->accelerator('CmdOrCtrl+O')->event('file.open'),
+    Label::make('Open Recent')
+        ->submenu(
+            Label::make('project1.php'),
+            Label::make('project2.php'),
+            Label::make('project3.php')
+        ),
+    Separator::make(),
+    Label::make('Properties')->event('properties.show')
+);
+
+ContextMenu::register($menu);
+```
+
+### Dynamic Context Menu
+
+```php
+use Native\Desktop\Facades\ContextMenu;
+use Native\Desktop\Facades\Menu;
+use Native\Desktop\Menu\Items\Label;
+use Native\Desktop\Menu\Items\Separator;
+use Native\Desktop\Menu\Items\Checkbox;
+
+// You can dynamically create context menus based on application state
+$items = [
+    Label::make('Copy')->event('copy'),
+];
+
+if (auth()->check()) {
+    $items[] = Label::make('Share')->event('share');
+    $items[] = Separator::make();
+    $items[] = Label::make('Delete')->event('delete');
+}
+
+$items[] = Separator::make();
+$items[] = Checkbox::make('Show details', $showDetails)->event('toggle.details');
+
+$menu = Menu::make(...$items);
+
+ContextMenu::register($menu);
+```
+
+### Removing Context Menu
+
+```php
+use Native\Desktop\Facades\ContextMenu;
+
+// Remove the context menu when not needed
+ContextMenu::remove();
+
+// Later, you can register a new one
+$menu = Menu::make(
+    Label::make('New Menu Item')
+);
+
+ContextMenu::register($menu);
+```
+
+## Menu Items
+
+Context menus support all menu item types:
+
+- **Label** - Standard clickable menu item
+- **Link** - Menu item that navigates to a URL
+- **Checkbox** - Menu item with a checkbox
+- **Radio** - Menu item with a radio button
+- **Separator** - Visual separator between items
+
+See the [Menu API documentation](/api/menu) for detailed information about menu items and their methods.
+
+## Handling Context Menu Events
+
+When a user clicks a context menu item, you can handle it using Laravel events:
+
+```php
+use Native\Desktop\Events\Menu\MenuItemClicked;
+
+class MenuItemClickedListener
+{
+    public function handle(MenuItemClicked $event)
+    {
+        match ($event->id) {
+            'copy' => $this->handleCopy(),
+            'paste' => $this->handlePaste(),
+            'delete' => $this->handleDelete(),
+            default => null,
+        };
+    }
+}
+```
+
+## Platform Considerations
+
+<Note>
+  Context menus are available on all platforms (Windows, macOS, and Linux). The appearance and behavior will match the native platform conventions.
+</Note>

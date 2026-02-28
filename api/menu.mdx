@@ -1,0 +1,328 @@
+---
+title: Menu
+description: Create and manage application menus in NativePHP Desktop
+---
+
+The Menu API allows you to create native application menus with various menu item types including labels, links, checkboxes, radio buttons, and separators.
+
+## Creating a Menu
+
+```php
+use Native\Desktop\Facades\Menu;
+use Native\Desktop\Menu\Items\Label;
+use Native\Desktop\Menu\Items\Link;
+use Native\Desktop\Menu\Items\Separator;
+
+$menu = Menu::make(
+    Label::make('File'),
+    Link::make('/settings', 'Settings')->accelerator('CmdOrCtrl+,'),
+    Separator::make(),
+    Label::make('Quit')->accelerator('CmdOrCtrl+Q')
+);
+
+$menu->register();
+```
+
+## Menu Methods
+
+### label
+
+Set the label for the menu.
+
+<ParamField path="label" type="string" required>
+  The label text for the menu
+</ParamField>
+
+```php
+$menu->label('File');
+```
+
+### add
+
+Add a menu item to the menu.
+
+<ParamField path="item" type="MenuItem" required>
+  A menu item instance (Label, Link, Checkbox, Radio, or Separator)
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Menu instance for method chaining
+</ResponseField>
+
+```php
+use Native\Desktop\Menu\Items\Label;
+
+$menu->add(Label::make('Settings'));
+```
+
+### register
+
+Register the menu with the application.
+
+```php
+$menu->register();
+```
+
+## Menu Item Types
+
+### Label
+
+A standard clickable menu item.
+
+```php
+use Native\Desktop\Menu\Items\Label;
+
+$item = Label::make('Settings', 'CmdOrCtrl+,');
+```
+
+<ParamField path="label" type="string" required>
+  The text label for the menu item
+</ParamField>
+
+<ParamField path="accelerator" type="string">
+  Optional keyboard shortcut (e.g., "CmdOrCtrl+Q")
+</ParamField>
+
+### Link
+
+A menu item that navigates to a URL.
+
+```php
+use Native\Desktop\Menu\Items\Link;
+
+$item = Link::make('/dashboard', 'Dashboard')
+    ->openInBrowser(false);
+```
+
+<ParamField path="url" type="string" required>
+  The URL to navigate to
+</ParamField>
+
+<ParamField path="label" type="string" required>
+  The text label for the menu item
+</ParamField>
+
+<ParamField path="accelerator" type="string">
+  Optional keyboard shortcut
+</ParamField>
+
+#### openInBrowser
+
+Set whether the link should open in the system browser.
+
+<ParamField path="openInBrowser" type="bool" default="false">
+  Whether to open in browser
+</ParamField>
+
+```php
+$item->openInBrowser(true);
+```
+
+### Checkbox
+
+A menu item with a checkbox.
+
+```php
+use Native\Desktop\Menu\Items\Checkbox;
+
+$item = Checkbox::make('Enable notifications', true);
+```
+
+<ParamField path="label" type="string" required>
+  The text label for the menu item
+</ParamField>
+
+<ParamField path="checked" type="bool" default="false">
+  Whether the checkbox is initially checked
+</ParamField>
+
+<ParamField path="accelerator" type="string">
+  Optional keyboard shortcut
+</ParamField>
+
+### Radio
+
+A menu item with a radio button.
+
+```php
+use Native\Desktop\Menu\Items\Radio;
+
+$item = Radio::make('Dark mode', true);
+```
+
+<ParamField path="label" type="string" required>
+  The text label for the menu item
+</ParamField>
+
+<ParamField path="checked" type="bool" default="false">
+  Whether the radio button is initially selected
+</ParamField>
+
+<ParamField path="accelerator" type="string">
+  Optional keyboard shortcut
+</ParamField>
+
+### Separator
+
+A visual separator between menu items.
+
+```php
+use Native\Desktop\Menu\Items\Separator;
+
+$item = Separator::make();
+```
+
+## Common Menu Item Methods
+
+All menu item types support the following methods:
+
+### id
+
+Set a unique identifier for the menu item.
+
+<ParamField path="id" type="string" required>
+  The unique identifier
+</ParamField>
+
+```php
+$item->id('settings-item');
+```
+
+### label
+
+Set the label text.
+
+<ParamField path="label" type="string" required>
+  The label text
+</ParamField>
+
+```php
+$item->label('Settings');
+```
+
+### sublabel
+
+Set a secondary label text.
+
+<ParamField path="sublabel" type="string" required>
+  The sublabel text
+</ParamField>
+
+```php
+$item->sublabel('Configure application');
+```
+
+### icon
+
+Set an icon for the menu item.
+
+<ParamField path="icon" type="string" required>
+  Path to the icon file
+</ParamField>
+
+```php
+$item->icon('/path/to/icon.png');
+```
+
+### accelerator
+
+Set a keyboard shortcut.
+
+<ParamField path="accelerator" type="string" required>
+  Keyboard shortcut (e.g., "CmdOrCtrl+Q")
+</ParamField>
+
+```php
+$item->accelerator('CmdOrCtrl+,');
+```
+
+### hotkey
+
+Alias for `accelerator()`.
+
+<ParamField path="hotkey" type="string" required>
+  Keyboard shortcut (e.g., "CmdOrCtrl+Q")
+</ParamField>
+
+```php
+$item->hotkey('CmdOrCtrl+,');
+```
+
+### tooltip
+
+Set a tooltip for the menu item.
+
+<ParamField path="tooltip" type="string" required>
+  The tooltip text
+</ParamField>
+
+```php
+$item->tooltip('Open settings');
+```
+
+### enabled
+
+Enable the menu item.
+
+```php
+$item->enabled();
+```
+
+### disabled
+
+Disable the menu item.
+
+```php
+$item->disabled();
+```
+
+### visible
+
+Set the visibility of the menu item.
+
+<ParamField path="visible" type="bool" default="true">
+  Whether the menu item is visible
+</ParamField>
+
+```php
+$item->visible(false);
+```
+
+### checked
+
+Set the checked state (for Checkbox and Radio items).
+
+<ParamField path="checked" type="bool" default="true">
+  Whether the item is checked
+</ParamField>
+
+```php
+$item->checked(true);
+```
+
+### event
+
+Set a Laravel event to dispatch when the menu item is clicked.
+
+<ParamField path="event" type="string" required>
+  The event class name
+</ParamField>
+
+```php
+$item->event('settings.opened');
+```
+
+### submenu
+
+Add a submenu to the menu item.
+
+<ParamField path="items" type="MenuItem..." required>
+  Variable number of menu items
+</ParamField>
+
+```php
+$item->submenu(
+    Label::make('Preferences'),
+    Label::make('About')
+);
+```

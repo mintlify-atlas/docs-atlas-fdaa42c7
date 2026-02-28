@@ -1,0 +1,170 @@
+---
+title: Dock
+description: Control the application dock icon on macOS and Linux in NativePHP Desktop
+---
+
+The Dock API provides control over your application's dock icon, including visibility, badges, bouncing, and context menus. Note that dock functionality is primarily available on macOS and some Linux desktop environments.
+
+## Basic Usage
+
+```php
+use Native\Desktop\Facades\Dock;
+
+Dock::show();
+Dock::badge('5');
+Dock::bounce();
+```
+
+## Methods
+
+### menu
+
+Set a context menu for the dock icon.
+
+<ParamField path="menu" type="Menu" required>
+  A Menu instance with menu items
+</ParamField>
+
+```php
+use Native\Desktop\Facades\Dock;
+use Native\Desktop\Facades\Menu;
+use Native\Desktop\Menu\Items\Label;
+
+$menu = Menu::make(
+    Label::make('Show Window'),
+    Label::make('Quit')->accelerator('CmdOrCtrl+Q')
+);
+
+Dock::menu($menu);
+```
+
+### show
+
+Show the dock icon.
+
+```php
+Dock::show();
+```
+
+### hide
+
+Hide the dock icon.
+
+```php
+Dock::hide();
+```
+
+### icon
+
+Set a custom icon for the dock.
+
+<ParamField path="path" type="string" required>
+  Path to the icon image file
+</ParamField>
+
+```php
+Dock::icon(storage_path('app/custom-icon.png'));
+```
+
+### bounce
+
+Bounce the dock icon to get the user's attention.
+
+<ParamField path="type" type="string" default="informational">
+  The bounce type: "informational" or "critical"
+</ParamField>
+
+```php
+// Informational bounce (bounces once)
+Dock::bounce();
+
+// Critical bounce (bounces continuously until app is activated)
+Dock::bounce('critical');
+```
+
+**Bounce Types:**
+- `informational` - Bounces the dock icon once
+- `critical` - Bounces the dock icon continuously until the application becomes active
+
+### cancelBounce
+
+Cancel a continuous bounce animation.
+
+```php
+Dock::cancelBounce();
+```
+
+### badge
+
+Get or set the badge text on the dock icon.
+
+<ParamField path="label" type="string|null">
+  The badge text to display. Pass null to get the current badge
+</ParamField>
+
+<ResponseField name="return" type="string|null">
+  Returns the current badge text when called without parameters, or null when setting
+</ResponseField>
+
+```php
+// Set a badge
+Dock::badge('5');
+
+// Get the current badge
+$badge = Dock::badge();
+
+// Clear the badge
+Dock::badge('');
+```
+
+## Platform Support
+
+<Note>
+  Dock functionality is primarily designed for macOS. On Linux, support depends on the desktop environment. On Windows, these methods may have no effect as Windows uses the taskbar instead of a dock.
+</Note>
+
+## Examples
+
+### Show Unread Count
+
+```php
+use Native\Desktop\Facades\Dock;
+
+$unreadCount = Message::where('read', false)->count();
+
+if ($unreadCount > 0) {
+    Dock::badge((string) $unreadCount);
+} else {
+    Dock::badge('');
+}
+```
+
+### Alert User with Critical Bounce
+
+```php
+use Native\Desktop\Facades\Dock;
+
+// Bounce until user opens the app
+Dock::bounce('critical');
+
+// Later, when user interacts with the app
+Dock::cancelBounce();
+```
+
+### Custom Dock Menu
+
+```php
+use Native\Desktop\Facades\Dock;
+use Native\Desktop\Facades\Menu;
+use Native\Desktop\Menu\Items\Label;
+use Native\Desktop\Menu\Items\Separator;
+
+$dockMenu = Menu::make(
+    Label::make('New Message')->event('message.new'),
+    Label::make('Show Inbox')->event('inbox.show'),
+    Separator::make(),
+    Label::make('Preferences')->accelerator('CmdOrCtrl+,')
+);
+
+Dock::menu($dockMenu);
+```

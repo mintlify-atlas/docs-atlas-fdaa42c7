@@ -1,0 +1,402 @@
+---
+title: Configuration
+description: Configure your NativePHP Desktop application settings
+---
+
+# Configuration
+
+Configure your NativePHP Desktop application's metadata, behavior, and build settings through the `config/nativephp.php` file.
+
+## Configuration File
+
+After installation, you'll find the configuration file at `config/nativephp.php`. This file controls all aspects of your desktop application.
+
+## Application Metadata
+
+Define your application's identity and metadata:
+
+### Version
+
+The version number of your application, used for update checks:
+
+```php
+'version' => env('NATIVEPHP_APP_VERSION', '1.0.0'),
+```
+
+<Note>
+  Increment this value every time you release a new version. The updater uses this to determine if updates are available.
+</Note>
+
+### Application ID
+
+A unique identifier for your application, typically in reverse domain notation:
+
+```php
+'app_id' => env('NATIVEPHP_APP_ID', 'com.nativephp.app'),
+```
+
+<Warning>
+  Use a unique application ID to prevent conflicts with other applications. Follow the reverse domain convention (e.g., `com.yourcompany.yourapp`).
+</Warning>
+
+### Deep Linking
+
+Configure a custom URL scheme to open your application from other apps:
+
+```php
+'deeplink_scheme' => env('NATIVEPHP_DEEPLINK_SCHEME'),
+```
+
+**Example**: Setting `deeplink_scheme` to `"myapp"` allows URLs like `myapp://some/path` to open your application.
+
+### Application Details
+
+Provide additional metadata for your application:
+
+```php
+'author' => env('NATIVEPHP_APP_AUTHOR'),
+'copyright' => env('NATIVEPHP_APP_COPYRIGHT'),
+'description' => env('NATIVEPHP_APP_DESCRIPTION', 'An awesome app built with NativePHP'),
+'website' => env('NATIVEPHP_APP_WEBSITE', 'https://nativephp.com'),
+```
+
+<CodeGroup>
+```env .env Example
+NATIVEPHP_APP_VERSION=1.2.0
+NATIVEPHP_APP_ID=com.mycompany.myapp
+NATIVEPHP_APP_AUTHOR="My Company Inc."
+NATIVEPHP_APP_COPYRIGHT="Copyright © 2026 My Company"
+NATIVEPHP_APP_DESCRIPTION="A powerful desktop application"
+NATIVEPHP_APP_WEBSITE=https://mycompany.com
+NATIVEPHP_DEEPLINK_SCHEME=myapp
+```
+
+```php config/nativephp.php
+return [
+    'version' => env('NATIVEPHP_APP_VERSION', '1.0.0'),
+    'app_id' => env('NATIVEPHP_APP_ID', 'com.nativephp.app'),
+    'deeplink_scheme' => env('NATIVEPHP_DEEPLINK_SCHEME'),
+    'author' => env('NATIVEPHP_APP_AUTHOR'),
+    'copyright' => env('NATIVEPHP_APP_COPYRIGHT'),
+    'description' => env('NATIVEPHP_APP_DESCRIPTION', 'An awesome app built with NativePHP'),
+    'website' => env('NATIVEPHP_APP_WEBSITE', 'https://nativephp.com'),
+    // ...
+];
+```
+</CodeGroup>
+
+## Service Provider
+
+Specify your application's native service provider:
+
+```php
+'provider' => \App\Providers\NativeAppServiceProvider::class,
+```
+
+This provider bootstraps your application and configures windows, menus, global shortcuts, and more. See the [Quick Start](/quickstart) guide for examples.
+
+## Build Configuration
+
+### Environment Cleanup
+
+Remove sensitive keys from the `.env` file when building for production:
+
+```php
+'cleanup_env_keys' => [
+    'AWS_*',
+    'AZURE_*',
+    'GITHUB_*',
+    'DO_SPACES_*',
+    '*_SECRET',
+    'BIFROST_*',
+    'NATIVEPHP_UPDATER_PATH',
+    'NATIVEPHP_APPLE_ID',
+    'NATIVEPHP_APPLE_ID_PASS',
+    'NATIVEPHP_APPLE_TEAM_ID',
+    // Add your own sensitive keys here
+],
+```
+
+<Warning>
+  Wildcards are supported. Any environment variable matching these patterns will be removed from the production build to prevent exposing secrets.
+</Warning>
+
+### File Cleanup
+
+Exclude unnecessary files and folders from the production build:
+
+```php
+'cleanup_exclude_files' => [
+    'build',
+    'temp',
+    'content',
+    'node_modules',
+    '*/tests',
+],
+```
+
+This reduces the final application size by removing development-only files.
+
+### Build Scripts
+
+Run custom scripts before and after building:
+
+```php
+'prebuild' => [
+    'npm run build',
+],
+
+'postbuild' => [
+    'rm -rf public/build',
+],
+```
+
+<Steps>
+  <Step title="Prebuild Scripts">
+    Execute commands before bundling (e.g., compile assets, run tests)
+  </Step>
+  
+  <Step title="Postbuild Scripts">
+    Execute commands after bundling (e.g., cleanup, notifications)
+  </Step>
+</Steps>
+
+## Auto-Update System
+
+Configure automatic updates for your application:
+
+### Enable/Disable Updates
+
+```php
+'updater' => [
+    'enabled' => env('NATIVEPHP_UPDATER_ENABLED', true),
+    'default' => env('NATIVEPHP_UPDATER_PROVIDER', 'spaces'),
+    // ...
+],
+```
+
+<Note>
+  The updater only works in production builds. It will not function during development.
+</Note>
+
+### Update Providers
+
+NativePHP supports multiple update distribution methods:
+
+<Tabs>
+  <Tab title="GitHub Releases">
+    ```php
+    'providers' => [
+        'github' => [
+            'driver' => 'github',
+            'repo' => env('GITHUB_REPO'),
+            'owner' => env('GITHUB_OWNER'),
+            'token' => env('GITHUB_TOKEN'),
+            'vPrefixedTagName' => env('GITHUB_V_PREFIXED_TAG_NAME', true),
+            'private' => env('GITHUB_PRIVATE', false),
+            'autoupdate_token' => env('GITHUB_AUTOUPDATE_TOKEN'),
+            'channel' => env('GITHUB_CHANNEL', 'latest'),
+            'releaseType' => env('GITHUB_RELEASE_TYPE', 'draft'),
+        ],
+    ],
+    ```
+    
+    Perfect for open-source projects or private repositories.
+  </Tab>
+  
+  <Tab title="Amazon S3 / R2">
+    ```php
+    'providers' => [
+        's3' => [
+            'driver' => 's3',
+            'key' => env('AWS_ACCESS_KEY_ID'),
+            'secret' => env('AWS_SECRET_ACCESS_KEY'),
+            'region' => env('AWS_DEFAULT_REGION'),
+            'bucket' => env('AWS_BUCKET'),
+            'endpoint' => env('AWS_ENDPOINT'),
+            'path' => env('NATIVEPHP_UPDATER_PATH', null),
+            'public_url' => env('AWS_PUBLIC_URL'),
+        ],
+    ],
+    ```
+    
+    Compatible with AWS S3, Cloudflare R2, and other S3-compatible services.
+  </Tab>
+  
+  <Tab title="DigitalOcean Spaces">
+    ```php
+    'providers' => [
+        'spaces' => [
+            'driver' => 'spaces',
+            'key' => env('DO_SPACES_KEY_ID'),
+            'secret' => env('DO_SPACES_SECRET_ACCESS_KEY'),
+            'name' => env('DO_SPACES_NAME'),
+            'region' => env('DO_SPACES_REGION'),
+            'path' => env('NATIVEPHP_UPDATER_PATH', null),
+        ],
+    ],
+    ```
+    
+    Optimized for DigitalOcean Spaces storage.
+  </Tab>
+</Tabs>
+
+## Queue Workers
+
+Configure automatic queue workers that start with your application:
+
+```php
+'queue_workers' => [
+    'default' => [
+        'queues' => ['default'],
+        'memory_limit' => 128,
+        'timeout' => 60,
+        'sleep' => 3,
+    ],
+],
+```
+
+You can define multiple queue workers:
+
+```php
+'queue_workers' => [
+    'default' => [
+        'queues' => ['default'],
+        'memory_limit' => 128,
+        'timeout' => 60,
+        'sleep' => 3,
+    ],
+    'emails' => [
+        'queues' => ['emails', 'notifications'],
+        'memory_limit' => 256,
+        'timeout' => 120,
+        'sleep' => 5,
+    ],
+],
+```
+
+<CardGroup cols={2}>
+  <Card title="queues" icon="list">
+    Array of queue names to process
+  </Card>
+  
+  <Card title="memory_limit" icon="memory">
+    Memory limit in MB for the worker
+  </Card>
+  
+  <Card title="timeout" icon="clock">
+    Job timeout in seconds
+  </Card>
+  
+  <Card title="sleep" icon="bed">
+    Seconds to sleep when no jobs available
+  </Card>
+</CardGroup>
+
+## Custom PHP Binary
+
+Specify a custom PHP binary path if needed:
+
+```php
+'binary_path' => env('NATIVEPHP_PHP_BINARY_PATH', null),
+```
+
+<Note>
+  This is rarely needed. NativePHP automatically bundles the appropriate PHP runtime for your target platforms.
+</Note>
+
+## Complete Configuration Example
+
+<CodeGroup>
+```php config/nativephp.php
+<?php
+
+return [
+    'version' => env('NATIVEPHP_APP_VERSION', '1.0.0'),
+    'app_id' => env('NATIVEPHP_APP_ID', 'com.mycompany.myapp'),
+    'deeplink_scheme' => env('NATIVEPHP_DEEPLINK_SCHEME', 'myapp'),
+    'author' => env('NATIVEPHP_APP_AUTHOR', 'My Company'),
+    'copyright' => env('NATIVEPHP_APP_COPYRIGHT', 'Copyright © 2026'),
+    'description' => env('NATIVEPHP_APP_DESCRIPTION', 'My awesome desktop app'),
+    'website' => env('NATIVEPHP_APP_WEBSITE', 'https://myapp.com'),
+    
+    'provider' => \App\Providers\NativeAppServiceProvider::class,
+    
+    'cleanup_env_keys' => [
+        'AWS_*',
+        '*_SECRET',
+        'GITHUB_TOKEN',
+    ],
+    
+    'cleanup_exclude_files' => [
+        'node_modules',
+        '*/tests',
+        'storage/logs',
+    ],
+    
+    'updater' => [
+        'enabled' => env('NATIVEPHP_UPDATER_ENABLED', true),
+        'default' => env('NATIVEPHP_UPDATER_PROVIDER', 'github'),
+        'providers' => [
+            'github' => [
+                'driver' => 'github',
+                'repo' => env('GITHUB_REPO'),
+                'owner' => env('GITHUB_OWNER'),
+                'token' => env('GITHUB_TOKEN'),
+                'private' => false,
+                'channel' => 'latest',
+            ],
+        ],
+    ],
+    
+    'queue_workers' => [
+        'default' => [
+            'queues' => ['default'],
+            'memory_limit' => 128,
+            'timeout' => 60,
+            'sleep' => 3,
+        ],
+    ],
+    
+    'prebuild' => [
+        'npm run build',
+    ],
+    
+    'postbuild' => [],
+    
+    'binary_path' => env('NATIVEPHP_PHP_BINARY_PATH', null),
+];
+```
+
+```env .env
+APP_NAME="My Desktop App"
+APP_DEBUG=false
+
+NATIVEPHP_APP_VERSION=1.2.0
+NATIVEPHP_APP_ID=com.mycompany.myapp
+NATIVEPHP_APP_AUTHOR="My Company Inc."
+NATIVEPHP_APP_COPYRIGHT="Copyright © 2026 My Company"
+NATIVEPHP_APP_DESCRIPTION="A powerful desktop application built with PHP"
+NATIVEPHP_APP_WEBSITE=https://mycompany.com
+NATIVEPHP_DEEPLINK_SCHEME=myapp
+
+NATIVEPHP_UPDATER_ENABLED=true
+NATIVEPHP_UPDATER_PROVIDER=github
+
+GITHUB_REPO=myapp
+GITHUB_OWNER=mycompany
+GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxx
+```
+</CodeGroup>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Build your first desktop application
+  </Card>
+  
+  <Card title="Application Lifecycle" icon="rotate">
+    Learn about bootstrapping and lifecycle events
+  </Card>
+</CardGroup>

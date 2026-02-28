@@ -1,0 +1,314 @@
+---
+title: Storage Disks
+description: Access system directories with automatically configured Laravel filesystem disks
+---
+
+NativePHP Desktop automatically configures Laravel filesystem disks for common system directories, giving you easy access to user folders like Documents, Downloads, Desktop, and more.
+
+## Available Disks
+
+NativePHP provides the following pre-configured storage disks:
+
+| Disk Name | Environment Variable | Description |
+|-----------|---------------------|-------------|
+| `user_home` | `NATIVEPHP_USER_HOME_PATH` | User's home directory |
+| `app_data` | `NATIVEPHP_APP_DATA_PATH` | Application data directory |
+| `user_data` | `NATIVEPHP_USER_DATA_PATH` | User-specific app data |
+| `desktop` | `NATIVEPHP_DESKTOP_PATH` | User's Desktop folder |
+| `documents` | `NATIVEPHP_DOCUMENTS_PATH` | User's Documents folder |
+| `downloads` | `NATIVEPHP_DOWNLOADS_PATH` | User's Downloads folder |
+| `music` | `NATIVEPHP_MUSIC_PATH` | User's Music folder |
+| `pictures` | `NATIVEPHP_PICTURES_PATH` | User's Pictures folder |
+| `videos` | `NATIVEPHP_VIDEOS_PATH` | User's Videos folder |
+| `recent` | `NATIVEPHP_RECENT_PATH` | Recently accessed files |
+| `extras` | `NATIVEPHP_EXTRAS_PATH` | Extra application files |
+
+<Note>
+  These disks are automatically configured when the corresponding environment variable is set. NativePHP's runtime sets these variables based on the operating system.
+</Note>
+
+## Disk Configuration
+
+Each disk is configured as a standard Laravel local filesystem disk:
+
+```php
+'user_home' => [
+    'driver' => 'local',
+    'root' => env('NATIVEPHP_USER_HOME_PATH', ''),
+    'throw' => false,
+    'links' => 'skip',
+],
+```
+
+### Configuration Options
+
+- **driver**: Always `local` for system directories
+- **root**: The absolute path to the directory (from environment variable)
+- **throw**: Set to `false` to return `false` instead of throwing exceptions
+- **links**: Set to `skip` to skip symbolic links when scanning directories
+
+## Using Storage Disks
+
+Use Laravel's Storage facade to interact with these disks:
+
+<CodeGroup>
+
+```php Reading Files
+use Illuminate\Support\Facades\Storage;
+
+// Read a file from Documents
+$content = Storage::disk('documents')->get('report.txt');
+
+// Check if file exists
+if (Storage::disk('downloads')->exists('file.pdf')) {
+    // File exists
+}
+
+// Get file size
+$size = Storage::disk('pictures')->size('photo.jpg');
+
+// Get file last modified time
+$modified = Storage::disk('documents')->lastModified('file.txt');
+```
+
+```php Writing Files
+use Illuminate\Support\Facades\Storage;
+
+// Write to Desktop
+Storage::disk('desktop')->put('note.txt', 'Hello World!');
+
+// Write with automatic directory creation
+Storage::disk('documents')->put('reports/2024/summary.txt', $content);
+
+// Copy from one disk to another
+$content = Storage::disk('downloads')->get('file.txt');
+Storage::disk('documents')->put('file.txt', $content);
+
+// Move file within same disk
+Storage::disk('documents')->move('old.txt', 'new.txt');
+```
+
+```php Working with Directories
+use Illuminate\Support\Facades\Storage;
+
+// List files in directory
+$files = Storage::disk('documents')->files();
+$filesInFolder = Storage::disk('documents')->files('subfolder');
+
+// List all files recursively
+$allFiles = Storage::disk('documents')->allFiles();
+
+// List directories
+$directories = Storage::disk('documents')->directories();
+
+// Create directory
+Storage::disk('documents')->makeDirectory('new-folder');
+
+// Delete directory
+Storage::disk('documents')->deleteDirectory('old-folder');
+```
+
+```php Deleting Files
+use Illuminate\Support\Facades\Storage;
+
+// Delete single file
+Storage::disk('downloads')->delete('file.txt');
+
+// Delete multiple files
+Storage::disk('downloads')->delete(['file1.txt', 'file2.txt']);
+
+// Delete all files in directory
+$files = Storage::disk('documents')->files('temp');
+Storage::disk('documents')->delete($files);
+```
+
+</CodeGroup>
+
+## Common Use Cases
+
+### Export to Desktop
+
+Export files directly to the user's Desktop:
+
+```php
+use Illuminate\Support\Facades\Storage;
+
+public function exportReport()
+{
+    $reportData = $this->generateReport();
+    
+    Storage::disk('desktop')->put(
+        'report-' . date('Y-m-d') . '.csv',
+        $reportData
+    );
+    
+    return 'Report exported to Desktop!';
+}
+```
+
+### Import from Downloads
+
+Process files from the Downloads folder:
+
+```php
+use Illuminate\Support\Facades\Storage;
+
+public function importFile(string $filename)
+{
+    if (!Storage::disk('downloads')->exists($filename)) {
+        throw new \Exception('File not found in Downloads');
+    }
+    
+    $content = Storage::disk('downloads')->get($filename);
+    
+    // Process the file
+    $this->processImport($content);
+}
+```
+
+### Save to Documents
+
+Save user documents to the Documents folder:
+
+```php
+use Illuminate\Support\Facades\Storage;
+
+public function saveDocument(string $name, string $content)
+{
+    $folder = 'MyApp';
+    
+    // Ensure folder exists
+    if (!Storage::disk('documents')->exists($folder)) {
+        Storage::disk('documents')->makeDirectory($folder);
+    }
+    
+    // Save file
+    Storage::disk('documents')->put("{$folder}/{$name}", $content);
+}
+```
+
+### Backup to User Data
+
+Store application data that should persist:
+
+```php
+use Illuminate\Support\Facades\Storage;
+
+public function createBackup()
+{
+    $data = [
+        'users' => User::all(),
+        'settings' => Setting::all(),
+        'timestamp' => now(),
+    ];
+    
+    Storage::disk('user_data')->put(
+        'backups/backup-' . date('Y-m-d-H-i-s') . '.json',
+        json_encode($data)
+    );
+}
+```
+
+## File Path Helpers
+
+Get absolute paths when you need them:
+
+```php
+use Illuminate\Support\Facades\Storage;
+
+// Get full path to file
+$path = Storage::disk('documents')->path('file.txt');
+
+// Use with other PHP functions
+if (is_readable($path)) {
+    $handle = fopen($path, 'r');
+    // ...
+}
+```
+
+## Working with URLs
+
+<Warning>
+  Storage disks for system directories don't support URL generation since these are local file paths, not web-accessible URLs.
+</Warning>
+
+If you need to display files from these locations in your app:
+
+```php
+use Illuminate\Support\Facades\Storage;
+
+// Read and return as response
+Route::get('/view-document/{filename}', function ($filename) {
+    $content = Storage::disk('documents')->get($filename);
+    
+    return response($content)
+        ->header('Content-Type', Storage::disk('documents')->mimeType($filename));
+});
+
+// Or copy to public storage temporarily
+$content = Storage::disk('documents')->get('image.jpg');
+Storage::disk('public')->put('temp/image.jpg', $content);
+```
+
+## Best Practices
+
+<Note>
+  - **User Folders**: Always save user documents to appropriate system folders (Documents, Desktop, etc.)
+  - **App Data**: Use `app_data` or `user_data` for application-specific data
+  - **Permissions**: Be mindful that users may have restricted permissions on some directories
+  - **Error Handling**: Always check if files exist before reading and handle exceptions
+  - **Privacy**: Only access directories that are necessary for your application's functionality
+</Note>
+
+## Platform Differences
+
+Be aware that directory locations vary by operating system:
+
+<Accordion title="Platform-Specific Paths">
+  **macOS**
+  - Home: `/Users/username`
+  - Documents: `/Users/username/Documents`
+  - Desktop: `/Users/username/Desktop`
+  - App Data: `/Users/username/Library/Application Support/YourApp`
+  
+  **Windows**
+  - Home: `C:\Users\username`
+  - Documents: `C:\Users\username\Documents`
+  - Desktop: `C:\Users\username\Desktop`
+  - App Data: `C:\Users\username\AppData\Roaming\YourApp`
+  
+  **Linux**
+  - Home: `/home/username`
+  - Documents: `/home/username/Documents`
+  - Desktop: `/home/username/Desktop`
+  - App Data: `/home/username/.config/YourApp`
+</Accordion>
+
+## Troubleshooting
+
+### Disk Not Available
+
+If a disk is not available:
+
+1. Check that the environment variable is set
+2. Verify the path exists and is accessible
+3. Check file permissions
+4. In development, some paths may not be set by the runtime
+
+### Permission Denied
+
+If you get permission errors:
+
+1. Verify your app has permission to access the directory
+2. Check that the user hasn't restricted access
+3. On macOS, your app may need specific permissions granted by the user
+4. Use `app_data` or `user_data` for data your app owns
+
+### File Not Found
+
+If files aren't found:
+
+1. Always use relative paths, not absolute paths
+2. Check file existence before reading
+3. Verify you're using the correct disk
+4. Use `Storage::disk('name')->path('')` to see the disk's root path

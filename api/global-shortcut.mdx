@@ -1,0 +1,140 @@
+---
+title: GlobalShortcut
+description: Register system-wide keyboard shortcuts
+---
+
+The GlobalShortcut API allows you to register global keyboard shortcuts that work even when your application is not focused.
+
+## Usage
+
+```php
+use Native\Desktop\Facades\GlobalShortcut;
+
+// Register a global shortcut
+GlobalShortcut::key('CommandOrControl+Shift+K')
+    ->event('my-shortcut-event')
+    ->register();
+
+// Listen for the event
+use Native\Desktop\Events\GlobalShortcut\GlobalShortcutPressed;
+
+Event::listen(GlobalShortcutPressed::class, function ($event) {
+    if ($event->shortcut === 'my-shortcut-event') {
+        // Handle the shortcut
+    }
+});
+```
+
+## Methods
+
+### key()
+
+Set the keyboard shortcut to register.
+
+```php
+GlobalShortcut::key(string $key): self
+```
+
+<ParamField path="key" type="string" required>
+  The keyboard shortcut in Electron's accelerator format. Examples:
+  - `CommandOrControl+X`
+  - `Shift+Alt+F`
+  - `F12`
+  
+  See [Electron's accelerator documentation](https://www.electronjs.org/docs/latest/api/accelerator) for the full format.
+</ParamField>
+
+<ResponseField name="return" type="GlobalShortcut">
+  Returns the GlobalShortcut instance for method chaining.
+</ResponseField>
+
+**Example:**
+
+```php
+GlobalShortcut::key('CommandOrControl+Shift+P');
+```
+
+### event()
+
+Set the event name that will be dispatched when the shortcut is pressed.
+
+```php
+GlobalShortcut::event(string $event): self
+```
+
+<ParamField path="event" type="string" required>
+  The name of the event to dispatch when the shortcut is triggered.
+</ParamField>
+
+<ResponseField name="return" type="GlobalShortcut">
+  Returns the GlobalShortcut instance for method chaining.
+</ResponseField>
+
+**Example:**
+
+```php
+GlobalShortcut::event('toggle-window');
+```
+
+### register()
+
+Register the global shortcut with the system.
+
+```php
+GlobalShortcut::register(): void
+```
+
+**Example:**
+
+```php
+GlobalShortcut::key('CommandOrControl+Q')
+    ->event('quick-action')
+    ->register();
+```
+
+### unregister()
+
+Unregister a previously registered global shortcut.
+
+```php
+GlobalShortcut::unregister(): void
+```
+
+**Example:**
+
+```php
+// First set the key to identify which shortcut to unregister
+GlobalShortcut::key('CommandOrControl+Q')->unregister();
+```
+
+## Complete Example
+
+```php
+use Native\Desktop\Facades\GlobalShortcut;
+use Native\Desktop\Events\GlobalShortcut\GlobalShortcutPressed;
+use Illuminate\Support\Facades\Event;
+
+// Register a shortcut to toggle the main window
+GlobalShortcut::key('CommandOrControl+Shift+H')
+    ->event('toggle-main-window')
+    ->register();
+
+// Listen for the event
+Event::listen(GlobalShortcutPressed::class, function ($event) {
+    if ($event->shortcut === 'toggle-main-window') {
+        // Toggle window visibility
+        Window::current()->toggle();
+    }
+});
+
+// Later, unregister when no longer needed
+GlobalShortcut::key('CommandOrControl+Shift+H')->unregister();
+```
+
+## Notes
+
+- Global shortcuts are system-wide and work even when your app is in the background
+- On macOS, use `Command` modifier; on Windows/Linux, use `Control`
+- Use `CommandOrControl` to automatically use the appropriate modifier for each platform
+- Global shortcuts are automatically unregistered when your application closes
+- If a shortcut is already registered by another application, registration may fail silently

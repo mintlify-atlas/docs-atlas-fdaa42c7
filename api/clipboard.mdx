@@ -1,0 +1,129 @@
+---
+title: Clipboard
+description: Read and write to the system clipboard
+---
+
+The Clipboard API allows you to interact with the system clipboard, enabling you to read and write text, HTML, and images.
+
+## Usage
+
+```php
+use Native\Desktop\Facades\Clipboard;
+
+// Write text to clipboard
+Clipboard::text('Hello, World!');
+
+// Read text from clipboard
+$text = Clipboard::text();
+
+// Clear clipboard
+Clipboard::clear();
+```
+
+## Methods
+
+### text()
+
+Read or write plain text to the clipboard.
+
+```php
+Clipboard::text(string $text = null): string
+```
+
+<ParamField path="text" type="string" optional>
+  The text to write to the clipboard. If omitted, reads from the clipboard.
+</ParamField>
+
+<ResponseField name="return" type="string">
+  When reading: the text content from the clipboard. When writing: the text that was written.
+</ResponseField>
+
+**Example:**
+
+```php
+// Write to clipboard
+Clipboard::text('Copy this text');
+
+// Read from clipboard
+$content = Clipboard::text();
+echo $content; // "Copy this text"
+```
+
+### html()
+
+Read or write HTML content to the clipboard.
+
+```php
+Clipboard::html(string $html = null): string
+```
+
+<ParamField path="html" type="string" optional>
+  The HTML content to write to the clipboard. If omitted, reads from the clipboard.
+</ParamField>
+
+<ResponseField name="return" type="string">
+  When reading: the HTML content from the clipboard. When writing: the HTML that was written.
+</ResponseField>
+
+**Example:**
+
+```php
+// Write HTML to clipboard
+Clipboard::html('<strong>Bold text</strong>');
+
+// Read HTML from clipboard
+$htmlContent = Clipboard::html();
+```
+
+### image()
+
+Read or write image data to the clipboard.
+
+```php
+Clipboard::image(string $image = null): ?string
+```
+
+<ParamField path="image" type="string" optional>
+  Either a file path to an image or a data URI. If omitted, reads the image from the clipboard.
+</ParamField>
+
+<ResponseField name="return" type="string|null">
+  When reading: a data URI of the image from the clipboard, or null if no image. When writing: the original input value.
+</ResponseField>
+
+**Example:**
+
+```php
+// Write image from file path
+Clipboard::image('/path/to/image.png');
+
+// Write image from data URI
+Clipboard::image('data:image/png;base64,iVBORw0KGgoAAAANS...');
+
+// Read image from clipboard
+$imageData = Clipboard::image();
+```
+
+### clear()
+
+Clear all content from the clipboard.
+
+```php
+Clipboard::clear(): void
+```
+
+**Example:**
+
+```php
+Clipboard::clear();
+```
+
+## Conditional Operations
+
+The Clipboard class uses Laravel's `Conditionable` trait, allowing you to conditionally execute clipboard operations:
+
+```php
+Clipboard::when($someCondition, function ($clipboard) {
+    $clipboard->text('Conditional text');
+});
+```

@@ -1,122 +1,121 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "NativePHP Desktop",
+  "theme": "palm",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#7C3AED",
+    "light": "#A78BFA",
+    "dark": "#6D28D9"
   },
-  "favicon": "/favicon.svg",
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/NativePHP/desktop"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/NativePHP/desktop"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Getting Started",
             "pages": [
-              "index",
-              "quickstart",
-              "development"
+              "introduction",
+              "installation",
+              "configuration",
+              "quickstart"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "core/application-lifecycle",
+              "core/windows",
+              "core/menu-system",
+              "core/events"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Features",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "features/notifications",
+              "features/dialogs",
+              "features/clipboard",
+              "features/system-tray",
+              "features/global-shortcuts",
+              "features/child-processes",
+              "features/auto-updater"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Building & Distribution",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "building/overview",
+              "building/configuration",
+              "building/bundling",
+              "building/code-signing"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/queue-workers",
+              "advanced/database",
+              "advanced/storage-disks",
+              "advanced/power-monitoring",
+              "advanced/testing"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "API Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "Window Management",
             "pages": [
-              "api-reference/introduction"
+              "api/window",
+              "api/menubar"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "User Interface",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "api/menu",
+              "api/dock",
+              "api/notification",
+              "api/dialog",
+              "api/context-menu"
+            ]
+          },
+          {
+            "group": "System Integration",
+            "pages": [
+              "api/clipboard",
+              "api/global-shortcut",
+              "api/shell",
+              "api/system",
+              "api/screen",
+              "api/power-monitor"
+            ]
+          },
+          {
+            "group": "Process & Updates",
+            "pages": [
+              "api/child-process",
+              "api/queue-worker",
+              "api/updater",
+              "api/settings"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

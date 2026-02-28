@@ -1,0 +1,115 @@
+---
+title: Introduction to NativePHP Desktop
+description: Build native desktop applications using PHP and Laravel
+---
+
+# Welcome to NativePHP Desktop
+
+NativePHP Desktop is a Laravel package that allows you to write native desktop applications using PHP. Build cross-platform desktop apps for Windows, macOS, and Linux using the tools and framework you already know and love.
+
+<CardGroup cols={2}>
+  <Card title="Native Windows" icon="window-maximize">
+    Create and manage multiple windows with full control over appearance, behavior, and lifecycle
+  </Card>
+  
+  <Card title="System Integration" icon="desktop">
+    Access native features like notifications, menus, dock, clipboard, and system dialogs
+  </Card>
+  
+  <Card title="Auto Updates" icon="cloud-arrow-down">
+    Built-in update system with support for GitHub releases, S3, and DigitalOcean Spaces
+  </Card>
+  
+  <Card title="Background Tasks" icon="gears">
+    Run Laravel queues and background processes seamlessly within your desktop app
+  </Card>
+</CardGroup>
+
+## Why NativePHP Desktop?
+
+NativePHP Desktop bridges the gap between web development and native desktop applications. Instead of learning entirely new technologies, you can leverage your existing Laravel and PHP knowledge to create powerful desktop applications.
+
+### Key Features
+
+- **Full Laravel Integration** - Use all Laravel features including Eloquent, queues, events, and more
+- **Cross-Platform** - Build once, deploy to Windows, macOS, and Linux
+- **Native APIs** - Access operating system features through simple, elegant facades
+- **Development Mode** - Test and debug your application locally before building
+- **Production Ready** - Bundle your application into distributable installers
+
+## How It Works
+
+NativePHP Desktop uses Electron under the hood to provide a native shell for your Laravel application. Your PHP code runs on an embedded PHP server, while the UI is rendered using web technologies. This architecture gives you:
+
+<CardGroup cols={3}>
+  <Card title="PHP Backend" icon="php">
+    Full Laravel framework with all its features
+  </Card>
+  
+  <Card title="Web Frontend" icon="browser">
+    Use Blade, Livewire, Vue, React, or any frontend framework
+  </Card>
+  
+  <Card title="Native Bridge" icon="bridge">
+    Seamless communication between PHP and native features
+  </Card>
+</CardGroup>
+
+## Requirements
+
+Before getting started, ensure your development environment meets these requirements:
+
+- PHP 8.3 or higher
+- Laravel 10.x, 11.x, or 12.x
+- Composer
+- Node.js and npm (for building the application)
+- ext-zip PHP extension
+
+<Note>
+  NativePHP Desktop requires PHP 8.3+ and supports Laravel versions 10, 11, and 12.
+</Note>
+
+## What You Can Build
+
+NativePHP Desktop is perfect for building:
+
+- **Business Applications** - CRMs, ERPs, inventory management systems
+- **Developer Tools** - Code editors, deployment tools, database clients
+- **Creative Software** - Image editors, video processors, music players
+- **Productivity Apps** - Task managers, note-taking apps, time trackers
+- **Utilities** - File converters, system monitors, backup tools
+
+## Next Steps
+
+Ready to get started? Follow our step-by-step guides:
+
+<CardGroup cols={2}>
+  <Card title="Installation" icon="download" href="/installation">
+    Install NativePHP Desktop in your Laravel project
+  </Card>
+  
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Build your first desktop application in minutes
+  </Card>
+</CardGroup>
+
+<Warning>
+  NativePHP Desktop conflicts with `nativephp/mobile`, `nativephp/laravel`, and `nativephp/electron` packages. Only install one NativePHP package per project.
+</Warning>
+
+## Community and Support
+
+Join the NativePHP community:
+
+- Visit the [official website](https://nativephp.com)
+- Report issues on [GitHub](https://github.com/nativephp/desktop)
+- Check out the [contributing guide](https://github.com/nativephp/desktop/blob/main/CONTRIBUTING.md)
+
+## Sponsors
+
+NativePHP is made possible by our sponsors:
+
+- **[Bifrost](https://bifrost.nativephp.com)** - Build your NativePHP Desktop and Mobile apps for any platform, all in one place
+- **[Laradevs](https://laradevs.com/?ref=nativephp-docs)** - Connecting the best Laravel Developers with the best Laravel Teams
+
+Consider [sponsoring NativePHP](https://nativephp.com/sponsor) to support its development.

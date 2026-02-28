@@ -1,0 +1,207 @@
+---
+title: Clipboard Operations
+description: Read and write text, HTML, and images to the system clipboard
+---
+
+NativePHP Desktop provides a simple API for interacting with the system clipboard, supporting text, HTML, and image data.
+
+## Text Operations
+
+### Writing Text
+
+Copy text to the clipboard:
+
+```php
+use Native\Desktop\Facades\Clipboard;
+
+Clipboard::text('Hello, World!');
+```
+
+### Reading Text
+
+Get text from the clipboard:
+
+```php
+$text = Clipboard::text();
+
+echo $text; // Outputs whatever text is currently in the clipboard
+```
+
+## HTML Operations
+
+### Writing HTML
+
+Copy HTML content to the clipboard:
+
+```php
+Clipboard::html('<h1>Hello</h1><p>This is <strong>HTML</strong> content.</p>');
+```
+
+This is useful for rich text editors or when users need to paste formatted content into other applications.
+
+### Reading HTML
+
+Get HTML from the clipboard:
+
+```php
+$html = Clipboard::html();
+```
+
+<Note>
+When HTML is copied to the clipboard, most applications also copy a plain text version. The HTML version is used when pasting into applications that support rich text.
+</Note>
+
+## Image Operations
+
+### Writing Images
+
+Copy an image to the clipboard using a file path:
+
+```php
+Clipboard::image('/path/to/image.png');
+```
+
+Or use a data URI:
+
+```php
+$dataUri = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUA...';
+Clipboard::image($dataUri);
+```
+
+### Reading Images
+
+Get an image from the clipboard as a data URI:
+
+```php
+$imageDataUri = Clipboard::image();
+
+if ($imageDataUri) {
+    // Save or process the image
+    $imageData = base64_decode(explode(',', $imageDataUri)[1]);
+    file_put_contents('clipboard-image.png', $imageData);
+}
+```
+
+## Clearing the Clipboard
+
+Clear all clipboard contents:
+
+```php
+Clipboard::clear();
+```
+
+## Practical Examples
+
+<CodeGroup>
+
+```php Copy to Clipboard Button
+use Native\Desktop\Facades\Clipboard;
+
+class ShareController extends Controller
+{
+    public function copyShareLink($itemId)
+    {
+        $item = Item::findOrFail($itemId);
+        $url = route('share.item', $item);
+        
+        Clipboard::text($url);
+        
+        return response()->json([
+            'message' => 'Link copied to clipboard!'
+        ]);
+    }
+}
+```
+
+```php Screenshot to Clipboard
+use Native\Desktop\Facades\Clipboard;
+
+class ScreenshotService
+{
+    public function captureAndCopy()
+    {
+        // Capture screenshot (pseudocode)
+        $screenshotPath = $this->capture();
+        
+        // Copy to clipboard
+        Clipboard::image($screenshotPath);
+        
+        // Optionally show notification
+        Notification::new()
+            ->title('Screenshot Copied')
+            ->message('Screenshot has been copied to clipboard')
+            ->show();
+    }
+}
+```
+
+```php Rich Text Copy
+use Native\Desktop\Facades\Clipboard;
+
+class DocumentExporter
+{
+    public function copyFormatted($document)
+    {
+        // Generate HTML version
+        $html = view('documents.export-html', [
+            'document' => $document
+        ])->render();
+        
+        // Copy HTML to clipboard
+        Clipboard::html($html);
+        
+        // Also copy plain text version
+        Clipboard::text($document->plainText);
+    }
+}
+```
+
+```php Paste Image from Clipboard
+use Native\Desktop\Facades\Clipboard;
+
+class ImagePasteHandler
+{
+    public function pasteFromClipboard()
+    {
+        $imageDataUri = Clipboard::image();
+        
+        if (!$imageDataUri) {
+            return response()->json([
+                'error' => 'No image in clipboard'
+            ], 400);
+        }
+        
+        // Extract base64 data
+        preg_match('/data:image\/(\w+);base64,(.*)/', $imageDataUri, $matches);
+        $extension = $matches[1];
+        $imageData = base64_decode($matches[2]);
+        
+        // Save to storage
+        $filename = uniqid() . '.' . $extension;
+        Storage::put('uploads/' . $filename, $imageData);
+        
+        return response()->json([
+            'filename' => $filename,
+            'url' => Storage::url('uploads/' . $filename)
+        ]);
+    }
+}
+```
+
+</CodeGroup>
+
+## Chaining with Conditionals
+
+The Clipboard class supports Laravel's `Conditionable` trait:
+
+```php
+Clipboard::when($shouldCopyHtml, function ($clipboard) {
+    $clipboard->html('<h1>Formatted</h1>');
+}, function ($clipboard) {
+    $clipboard->text('Plain text');
+});
+```
+
+<Warning>
+Reading from the clipboard requires appropriate permissions on some operating systems. Users may need to grant clipboard access permissions on first use.
+</Warning>

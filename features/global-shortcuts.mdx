@@ -1,0 +1,259 @@
+---
+title: Global Shortcuts
+description: Register system-wide keyboard shortcuts for your application
+---
+
+NativePHP Desktop allows you to register global keyboard shortcuts that work even when your application is not focused.
+
+## Registering Shortcuts
+
+### Basic Registration
+
+Register a global shortcut that triggers an event:
+
+```php
+use Native\Desktop\Facades\GlobalShortcut;
+
+GlobalShortcut::key('CommandOrControl+Shift+K')
+    ->event('shortcuts.quick-capture')
+    ->register();
+```
+
+### Shortcut Syntax
+
+Use the following modifiers in your key combinations:
+
+- `CommandOrControl` - Command on macOS, Control on Windows/Linux
+- `Command` or `Cmd` - macOS only
+- `Control` or `Ctrl` - Control key
+- `Alt` or `Option` - Alt key
+- `Shift` - Shift key
+- `Super` - Windows key on Windows/Linux
+
+Example key combinations:
+
+```php
+// Cross-platform shortcuts
+GlobalShortcut::key('CommandOrControl+Q')->event('app.quit')->register();
+GlobalShortcut::key('CommandOrControl+N')->event('window.new')->register();
+GlobalShortcut::key('CommandOrControl+Shift+P')->event('command.palette')->register();
+
+// Function keys
+GlobalShortcut::key('F12')->event('devtools.toggle')->register();
+
+// Letter keys
+GlobalShortcut::key('CommandOrControl+K')->event('search.focus')->register();
+```
+
+<Note>
+Use `CommandOrControl` instead of `Command` or `Control` to ensure your shortcuts work across all platforms.
+</Note>
+
+## Handling Shortcut Events
+
+Listen for the events triggered by your shortcuts:
+
+```php
+use Native\Desktop\Events\GlobalShortcut\GlobalShortcutPressed;
+
+Event::listen(function (GlobalShortcutPressed $event) {
+    if ($event->event === 'shortcuts.quick-capture') {
+        // Handle quick capture shortcut
+        app(CaptureService::class)->startCapture();
+    }
+});
+```
+
+Or use dedicated event listeners:
+
+```php
+namespace App\Listeners;
+
+use Native\Desktop\Events\GlobalShortcut\GlobalShortcutPressed;
+
+class HandleQuickCapture
+{
+    public function handle(GlobalShortcutPressed $event)
+    {
+        if ($event->event === 'shortcuts.quick-capture') {
+            // Bring window to front
+            Window::current()->show();
+            
+            // Focus capture input
+            Window::current()->focus();
+        }
+    }
+}
+```
+
+## Unregistering Shortcuts
+
+Remove a registered global shortcut:
+
+```php
+GlobalShortcut::key('CommandOrControl+Shift+K')
+    ->unregister();
+```
+
+## Common Use Cases
+
+<CodeGroup>
+
+```php Quick Capture
+use Native\Desktop\Facades\GlobalShortcut;
+use Native\Desktop\Facades\Window;
+
+class ShortcutServiceProvider extends ServiceProvider
+{
+    public function boot()
+    {
+        // Register quick capture shortcut
+        GlobalShortcut::key('CommandOrControl+Shift+Space')
+            ->event('capture.quick')
+            ->register();
+
+        Event::listen(function (GlobalShortcutPressed $event) {
+            if ($event->event === 'capture.quick') {
+                Window::current()->show();
+                Window::current()->focus();
+            }
+        });
+    }
+}
+```
+
+```php Toggle Window
+use Native\Desktop\Facades\GlobalShortcut;
+use Native\Desktop\Facades\Window;
+
+// Toggle main window visibility
+GlobalShortcut::key('CommandOrControl+Shift+T')
+    ->event('window.toggle')
+    ->register();
+
+Event::listen(function (GlobalShortcutPressed $event) {
+    if ($event->event === 'window.toggle') {
+        $window = Window::current();
+        
+        if ($window->isVisible()) {
+            $window->hide();
+        } else {
+            $window->show();
+            $window->focus();
+        }
+    }
+});
+```
+
+```php Multiple Actions
+use Native\Desktop\Facades\GlobalShortcut;
+
+class GlobalShortcutManager
+{
+    public function registerAll()
+    {
+        // Search
+        GlobalShortcut::key('CommandOrControl+K')
+            ->event('search.open')
+            ->register();
+
+        // New item
+        GlobalShortcut::key('CommandOrControl+N')
+            ->event('item.new')
+            ->register();
+
+        // Settings
+        GlobalShortcut::key('CommandOrControl+,')
+            ->event('settings.open')
+            ->register();
+
+        // Quick note
+        GlobalShortcut::key('CommandOrControl+Shift+N')
+            ->event('note.quick')
+            ->register();
+    }
+
+    public function unregisterAll()
+    {
+        GlobalShortcut::key('CommandOrControl+K')->unregister();
+        GlobalShortcut::key('CommandOrControl+N')->unregister();
+        GlobalShortcut::key('CommandOrControl+,')->unregister();
+        GlobalShortcut::key('CommandOrControl+Shift+N')->unregister();
+    }
+}
+```
+
+```php Configurable Shortcuts
+use Native\Desktop\Facades\GlobalShortcut;
+
+class UserShortcutManager
+{
+    public function registerUserShortcut($action, $key)
+    {
+        // Unregister old shortcut if exists
+        $oldKey = Setting::get("shortcuts.{$action}");
+        if ($oldKey) {
+            GlobalShortcut::key($oldKey)->unregister();
+        }
+
+        // Register new shortcut
+        GlobalShortcut::key($key)
+            ->event("shortcuts.{$action}")
+            ->register();
+
+        // Save to settings
+        Setting::set("shortcuts.{$action}", $key);
+    }
+
+    public function loadUserShortcuts()
+    {
+        $shortcuts = Setting::get('shortcuts', []);
+
+        foreach ($shortcuts as $action => $key) {
+            GlobalShortcut::key($key)
+                ->event("shortcuts.{$action}")
+                ->register();
+        }
+    }
+}
+```
+
+</CodeGroup>
+
+## Best Practices
+
+<Steps>
+
+### Choose Unique Combinations
+
+Avoid common shortcuts that might conflict with other applications. Use modifier combinations like `CommandOrControl+Shift+Key` to reduce conflicts.
+
+### Provide Configuration
+
+Allow users to customize shortcuts in your application settings, as different users may have different preferences or conflicts.
+
+### Document Your Shortcuts
+
+Make your global shortcuts discoverable by listing them in your application's help menu or settings panel.
+
+### Clean Up on Exit
+
+Unregister shortcuts when your application closes or when users disable features that use them.
+
+</Steps>
+
+## Platform Differences
+
+Be aware of platform-specific behaviors:
+
+- macOS: Some shortcuts may be reserved by the system
+- Windows: Windows key combinations may conflict with system shortcuts
+- Linux: Behavior may vary depending on the desktop environment
+
+<Warning>
+Global shortcuts can conflict with system shortcuts or other applications. Always use modifier combinations and provide a way for users to customize or disable shortcuts.
+</Warning>
+
+<Note>
+If a shortcut is already registered by another application, the registration will fail silently. Consider providing feedback to users if critical shortcuts cannot be registered.
+</Note>

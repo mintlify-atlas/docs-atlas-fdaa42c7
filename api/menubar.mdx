@@ -1,0 +1,496 @@
+---
+title: MenuBar API
+description: Complete API reference for menu bar management in NativePHP Desktop
+---
+
+# MenuBar API
+
+The MenuBar API allows you to create and manage a menu bar icon in the system tray (Windows/Linux) or menu bar (macOS).
+
+## Creating a MenuBar
+
+### Native\Desktop\Facades\MenuBar::create()
+
+Create a new menu bar with the default configuration.
+
+<ResponseField name="PendingCreateMenuBar" type="object">
+  Returns a PendingCreateMenuBar instance for configuring the menu bar before it's created
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\MenuBar;
+
+MenuBar::create()
+    ->icon(storage_path('app/icon.png'))
+    ->label('My App')
+    ->url(route('menubar'))
+    ->width(300)
+    ->height(400);
+```
+
+## MenuBar Management
+
+### show()
+
+Show the menu bar window.
+
+```php
+MenuBar::show();
+```
+
+### hide()
+
+Hide the menu bar window.
+
+```php
+MenuBar::hide();
+```
+
+### label()
+
+Update the menu bar label text.
+
+<ParamField path="label" type="string" required>
+  Label text to display next to the icon
+</ParamField>
+
+```php
+MenuBar::label('5 notifications');
+MenuBar::label(''); // Clear label
+```
+
+### tooltip()
+
+Set the tooltip text when hovering over the menu bar icon.
+
+<ParamField path="tooltip" type="string" required>
+  Tooltip text
+</ParamField>
+
+```php
+MenuBar::tooltip('My Application - Click to open');
+```
+
+### icon()
+
+Update the menu bar icon.
+
+<ParamField path="icon" type="string" required>
+  Path to the icon file
+</ParamField>
+
+```php
+MenuBar::icon(storage_path('app/icon-alert.png'));
+```
+
+### resize()
+
+Resize the menu bar window.
+
+<ParamField path="width" type="int" required>
+  New width in pixels
+</ParamField>
+
+<ParamField path="height" type="int" required>
+  New height in pixels
+</ParamField>
+
+```php
+MenuBar::resize(400, 500);
+```
+
+### contextMenu()
+
+Set a context menu for the menu bar icon.
+
+<ParamField path="contextMenu" type="Menu" required>
+  Menu object with menu items
+</ParamField>
+
+```php
+use Native\Desktop\Menu\Menu;
+use Native\Desktop\Facades\MenuBar;
+
+$menu = Menu::new()
+    ->label('Options')
+    ->submenu(
+        Menu::new()->label('Settings')->event('settings'),
+        Menu::new()->label('About')->event('about'),
+        Menu::new()->separator(),
+        Menu::new()->label('Quit')->event('quit')
+    );
+
+MenuBar::contextMenu($menu);
+```
+
+### showContextMenu()
+
+Programmatically show the context menu.
+
+```php
+MenuBar::showContextMenu();
+```
+
+## MenuBar Configuration Methods
+
+These methods are chainable and used when creating a menu bar:
+
+### icon()
+
+Set the menu bar icon.
+
+<ParamField path="icon" type="string" required>
+  Path to the icon file (PNG recommended)
+</ParamField>
+
+```php
+MenuBar::create()->icon(storage_path('app/menubar-icon.png'));
+```
+
+### label()
+
+Set the menu bar label text.
+
+<ParamField path="label" type="string" default="''">
+  Label text to display
+</ParamField>
+
+```php
+MenuBar::create()->label('App');
+```
+
+### tooltip()
+
+Set the tooltip text.
+
+<ParamField path="tooltip" type="string" default="''">
+  Tooltip text
+</ParamField>
+
+```php
+MenuBar::create()->tooltip('My Application');
+```
+
+### url()
+
+Set the URL to load in the menu bar window.
+
+<ParamField path="url" type="string" required>
+  Full URL to load
+</ParamField>
+
+```php
+MenuBar::create()->url('https://example.com/menubar');
+```
+
+### route()
+
+Set the URL using a Laravel route name.
+
+<ParamField path="route" type="string" required>
+  Laravel route name
+</ParamField>
+
+<ParamField path="parameters" type="array" default="[]">
+  Route parameters
+</ParamField>
+
+```php
+MenuBar::create()->route('menubar.index');
+MenuBar::create()->route('user.notifications', ['id' => 1]);
+```
+
+### width()
+
+Set the menu bar window width.
+
+<ParamField path="width" type="int" required>
+  Width in pixels
+</ParamField>
+
+```php
+MenuBar::create()->width(350);
+```
+
+### height()
+
+Set the menu bar window height.
+
+<ParamField path="height" type="int" required>
+  Height in pixels
+</ParamField>
+
+```php
+MenuBar::create()->height(450);
+```
+
+### resizable()
+
+Set whether the menu bar window can be resized.
+
+<ParamField path="resizable" type="bool" default="true">
+  Whether window is resizable
+</ParamField>
+
+```php
+MenuBar::create()->resizable(false);
+```
+
+### alwaysOnTop()
+
+Set whether the menu bar window stays on top.
+
+<ParamField path="alwaysOnTop" type="bool" default="true">
+  Whether window stays on top
+</ParamField>
+
+```php
+MenuBar::create()->alwaysOnTop(true);
+```
+
+### showDockIcon()
+
+Set whether to show the dock icon (macOS).
+
+<ParamField path="show" type="bool" default="true">
+  Whether to show dock icon
+</ParamField>
+
+```php
+MenuBar::create()->showDockIcon(false);
+```
+
+### showOnAllWorkspaces()
+
+Set whether the menu bar appears on all workspaces.
+
+<ParamField path="show" type="bool" default="true">
+  Whether to show on all workspaces
+</ParamField>
+
+```php
+MenuBar::create()->showOnAllWorkspaces(true);
+```
+
+### onlyShowContextMenu()
+
+Only show the context menu, don't open a window.
+
+<ParamField path="onlyContextMenu" type="bool" default="true">
+  Whether to only show context menu
+</ParamField>
+
+```php
+MenuBar::create()->onlyShowContextMenu();
+```
+
+### withContextMenu()
+
+Set a context menu for the menu bar.
+
+<ParamField path="menu" type="Menu" required>
+  Menu object with menu items
+</ParamField>
+
+```php
+use Native\Desktop\Menu\Menu;
+
+$contextMenu = Menu::new()
+    ->label('Context')
+    ->submenu(
+        Menu::new()->label('Open')->event('open'),
+        Menu::new()->separator(),
+        Menu::new()->label('Quit')->event('quit')
+    );
+
+MenuBar::create()->withContextMenu($contextMenu);
+```
+
+## Positioning
+
+### position()
+
+Set the position of the menu bar window.
+
+<ParamField path="x" type="int" required>
+  X coordinate in pixels
+</ParamField>
+
+<ParamField path="y" type="int" required>
+  Y coordinate in pixels
+</ParamField>
+
+```php
+MenuBar::create()->position(100, 100);
+```
+
+### windowPosition()
+
+Set the window positioning strategy. Available from the `HasPositioner` trait.
+
+<ParamField path="position" type="string" required>
+  Position strategy (platform-specific)
+</ParamField>
+
+```php
+MenuBar::create()->windowPosition('trayCenter');
+```
+
+## Appearance
+
+### backgroundColor()
+
+Set the background color of the menu bar window.
+
+<ParamField path="color" type="string" required>
+  Hex color code (e.g., '#FFFFFF')
+</ParamField>
+
+```php
+MenuBar::create()->backgroundColor('#1a1a1a');
+```
+
+### transparent()
+
+Make the menu bar window transparent.
+
+<ParamField path="transparent" type="bool" default="true">
+  Whether window is transparent
+</ParamField>
+
+```php
+MenuBar::create()->transparent();
+```
+
+### vibrancy()
+
+Set the vibrancy effect (macOS).
+
+<ParamField path="vibrancy" type="string" required>
+  Vibrancy type: 'appearance-based', 'light', 'dark', 'under-window'
+</ParamField>
+
+```php
+MenuBar::create()->vibrancy('dark');
+```
+
+### lightVibrancy()
+
+Apply light vibrancy effect.
+
+```php
+MenuBar::create()->lightVibrancy();
+```
+
+### darkVibrancy()
+
+Apply dark vibrancy effect.
+
+```php
+MenuBar::create()->darkVibrancy();
+```
+
+### blendBackgroundBehindWindow()
+
+Blend the content behind the window.
+
+```php
+MenuBar::create()->blendBackgroundBehindWindow();
+```
+
+## Advanced Options
+
+### webPreferences()
+
+Set Electron web preferences for the menu bar window.
+
+<ParamField path="preferences" type="array" required>
+  Array of web preference options
+</ParamField>
+
+```php
+MenuBar::create()->webPreferences([
+    'nodeIntegration' => false,
+    'contextIsolation' => true,
+]);
+```
+
+## Complete Examples
+
+### Basic Menu Bar
+
+```php
+use Native\Desktop\Facades\MenuBar;
+
+MenuBar::create()
+    ->icon(storage_path('app/menubar.png'))
+    ->label('Notes')
+    ->tooltip('My Notes App')
+    ->route('menubar.notes')
+    ->width(320)
+    ->height(480)
+    ->resizable(false)
+    ->vibrancy('dark');
+```
+
+### Context Menu Only
+
+```php
+use Native\Desktop\Facades\MenuBar;
+use Native\Desktop\Menu\Menu;
+
+$contextMenu = Menu::new()
+    ->label('Options')
+    ->submenu(
+        Menu::new()->label('Dashboard')->event('open-dashboard'),
+        Menu::new()->label('Settings')->event('open-settings'),
+        Menu::new()->separator(),
+        Menu::new()->label('Quit')->event('quit-app')
+    );
+
+MenuBar::create()
+    ->icon(storage_path('app/tray-icon.png'))
+    ->tooltip('My Application')
+    ->onlyShowContextMenu()
+    ->withContextMenu($contextMenu);
+```
+
+### Dynamic Menu Bar Updates
+
+```php
+use Native\Desktop\Facades\MenuBar;
+
+// Create initial menu bar
+MenuBar::create()
+    ->icon(storage_path('app/icon-idle.png'))
+    ->label('')
+    ->route('menubar');
+
+// Later, update the icon and label based on notifications
+$notificationCount = 5;
+
+if ($notificationCount > 0) {
+    MenuBar::icon(storage_path('app/icon-alert.png'));
+    MenuBar::label((string) $notificationCount);
+    MenuBar::tooltip("{$notificationCount} new notifications");
+} else {
+    MenuBar::icon(storage_path('app/icon-idle.png'));
+    MenuBar::label('');
+    MenuBar::tooltip('No new notifications');
+}
+```
+
+### Menu Bar with Positioning
+
+```php
+use Native\Desktop\Facades\MenuBar;
+
+MenuBar::create()
+    ->icon(storage_path('app/menubar.png'))
+    ->route('menubar')
+    ->width(300)
+    ->height(400)
+    ->windowPosition('trayCenter')
+    ->showOnAllWorkspaces()
+    ->vibrancy('appearance-based');
+```

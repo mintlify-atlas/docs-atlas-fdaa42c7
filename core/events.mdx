@@ -1,0 +1,486 @@
+---
+title: Event System
+description: Understanding NativePHP Desktop's event system and event broadcasting
+---
+
+NativePHP Desktop uses Laravel's event system to enable communication between your PHP application and the native runtime. Events are automatically broadcast between PHP and Electron, creating a seamless bridge for reactive applications.
+
+## Event Watcher
+
+The `EventWatcher` automatically registers a listener for all Laravel events and broadcasts them to the native runtime:
+
+```php
+class EventWatcher
+{
+    public function __construct(protected Client $client) {}
+
+    public function register(): void
+    {
+        Event::listen('*', function (string $eventName, array $data) {
+            $event = $data[0] ?? (object) null;
+
+            if (! is_object($event)) {
+                return;
+            }
+
+            if (! method_exists($event, 'broadcastOn')) {
+                return;
+            }
+
+            $channels = $event->broadcastOn();
+
+            // Only events dispatched on the nativephp channel
+            if (! in_array('nativephp', $channels)) {
+                return;
+            }
+
+            // Only post custom events to broadcasting endpoint
+            if (str_starts_with($eventName, 'Native\\Desktop\\Events')) {
+                return;
+            }
+
+            $this->client->post('broadcast', [
+                'event' => "\\{$eventName}",
+                'payload' => $event,
+            ]);
+        });
+    }
+}
+```
+
+<Note>
+  The `EventWatcher` is automatically registered in the `NativeServiceProvider` when running as a native application.
+</Note>
+
+## Broadcasting Events
+
+To broadcast custom events to the native runtime, implement `ShouldBroadcastNow` and broadcast on the `nativephp` channel:
+
+<Steps>
+  <Step title="Create the Event">
+    ```php
+    namespace App\Events;
+
+    use Illuminate\Broadcasting\Channel;
+    use Illuminate\Broadcasting\InteractsWithSockets;
+    use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+    use Illuminate\Foundation\Events\Dispatchable;
+    use Illuminate\Queue\SerializesModels;
+
+    class TaskCompleted implements ShouldBroadcastNow
+    {
+        use Dispatchable, InteractsWithSockets, SerializesModels;
+
+        public function __construct(
+            public string $taskName,
+            public string $status
+        ) {}
+
+        public function broadcastOn()
+        {
+            return [new Channel('nativephp')];
+        }
+    }
+    ```
+  </Step>
+  
+  <Step title="Dispatch the Event">
+    ```php
+    use App\Events\TaskCompleted;
+
+    TaskCompleted::dispatch('Process Data', 'success');
+    ```
+  </Step>
+  
+  <Step title="Event is Automatically Broadcast">
+    The `EventWatcher` automatically sends the event to the native runtime, where you can listen for it in JavaScript.
+  </Step>
+</Steps>
+
+<Warning>
+  Only events that broadcast on the `nativephp` channel are sent to the native runtime. Events on other channels are ignored.
+</Warning>
+
+## Built-in Events
+
+NativePHP provides many built-in events that you can listen for:
+
+### Window Events
+
+Events related to window lifecycle and state:
+
+<Tabs>
+  <Tab title="Window Focused">
+    ```php
+    use Native\Desktop\Events\Windows\WindowFocused;
+
+    Event::listen(WindowFocused::class, function ($event) {
+        Log::info('Window focused: ' . $event->id);
+    });
+    ```
+    
+    Event structure:
+    ```php
+    class WindowFocused implements ShouldBroadcastNow
+    {
+        use Dispatchable, InteractsWithSockets, SerializesModels;
+
+        public function __construct(public string $id) {}
+
+        public function broadcastOn()
+        {
+            return [new Channel('nativephp')];
+        }
+    }
+    ```
+  </Tab>
+  <Tab title="Window Closed">
+    ```php
+    use Native\Desktop\Events\Windows\WindowClosed;
+
+    Event::listen(WindowClosed::class, function ($event) {
+        Log::info('Window closed: ' . $event->id);
+        
+        // Cleanup resources
+        Cache::forget('window_state_' . $event->id);
+    });
+    ```
+  </Tab>
+  <Tab title="Other Window Events">
+    Available window events:
+    - `WindowShown`
+    - `WindowHidden`
+    - `WindowMinimized`
+    - `WindowMaximized`
+    - `WindowResized`
+    - `WindowBlurred`
+    
+    All window events include the window `id`:
+    ```php
+    Event::listen(WindowResized::class, function ($event) {
+        echo $event->id;  // 'main'
+    });
+    ```
+  </Tab>
+</Tabs>
+
+### Menu Events
+
+Events dispatched when menu items are clicked:
+
+```php
+use Native\Desktop\Events\Menu\MenuItemClicked;
+
+Event::listen(MenuItemClicked::class, function ($event) {
+    $item = $event->item;     // Menu item data
+    $combo = $event->combo;   // Keyboard shortcut used
+    
+    Log::info('Menu clicked: ' . $item['label']);
+    
+    match($item['label']) {
+        'Preferences' => redirect()->route('settings'),
+        'About' => Window::open('about'),
+        default => null,
+    };
+});
+```
+
+Event structure:
+```php
+class MenuItemClicked implements ShouldBroadcastNow
+{
+    use Dispatchable, InteractsWithSockets, SerializesModels;
+
+    public function __construct(
+        public array $item,
+        public array $combo = []
+    ) {}
+
+    public function broadcastOn()
+    {
+        return [new Channel('nativephp')];
+    }
+}
+```
+
+### Application Events
+
+Events related to application lifecycle:
+
+```php
+use Native\Desktop\Events\App\ApplicationBooted;
+use Native\Desktop\Events\App\OpenFile;
+use Native\Desktop\Events\App\OpenedFromURL;
+
+// Application finished booting
+Event::listen(ApplicationBooted::class, function () {
+    Log::info('NativePHP application booted');
+});
+
+// User opened a file with the app
+Event::listen(OpenFile::class, function ($event) {
+    $filePath = $event->path;
+    // Handle file opening
+});
+
+// App opened from custom URL scheme
+Event::listen(OpenedFromURL::class, function ($event) {
+    $url = $event->url;
+    // Handle deep linking
+});
+```
+
+### Notification Events
+
+Events from user interactions with notifications:
+
+```php
+use Native\Desktop\Events\Notifications\NotificationClicked;
+use Native\Desktop\Events\Notifications\NotificationClosed;
+use Native\Desktop\Events\Notifications\NotificationReply;
+use Native\Desktop\Events\Notifications\NotificationActionClicked;
+
+// Notification was clicked
+Event::listen(NotificationClicked::class, function ($event) {
+    // Handle notification click
+});
+
+// User replied to notification (macOS)
+Event::listen(NotificationReply::class, function ($event) {
+    $reply = $event->reply;
+    // Handle inline reply
+});
+
+// Action button clicked
+Event::listen(NotificationActionClicked::class, function ($event) {
+    $action = $event->action;
+    // Handle action
+});
+```
+
+### Power Monitor Events
+
+System power and state change events:
+
+<Accordion title="Power Monitor Events">
+  ```php
+  use Native\Desktop\Events\PowerMonitor\PowerStateChanged;
+  use Native\Desktop\Events\PowerMonitor\ScreenLocked;
+  use Native\Desktop\Events\PowerMonitor\ScreenUnlocked;
+  use Native\Desktop\Events\PowerMonitor\Shutdown;
+  use Native\Desktop\Events\PowerMonitor\ThermalStateChanged;
+  use Native\Desktop\Events\PowerMonitor\UserDidBecomeActive;
+  use Native\Desktop\Events\PowerMonitor\UserDidResignActive;
+
+  // Monitor battery/AC power changes
+  Event::listen(PowerStateChanged::class, function ($event) {
+      if ($event->isOnBattery) {
+          // Switch to power-saving mode
+      }
+  });
+
+  // Screen locked
+  Event::listen(ScreenLocked::class, function () {
+      // Pause sensitive operations
+  });
+
+  // Screen unlocked
+  Event::listen(ScreenUnlocked::class, function () {
+      // Resume operations
+  });
+
+  // System shutting down
+  Event::listen(Shutdown::class, function () {
+      // Save state before shutdown
+  });
+
+  // User became active/inactive
+  Event::listen(UserDidBecomeActive::class, function () {
+      // User returned
+  });
+
+  Event::listen(UserDidResignActive::class, function () {
+      // User switched away
+  });
+  ```
+</Accordion>
+
+### Auto Updater Events
+
+Events from the auto-update system:
+
+```php
+use Native\Desktop\Events\AutoUpdater\CheckingForUpdate;
+use Native\Desktop\Events\AutoUpdater\UpdateAvailable;
+use Native\Desktop\Events\AutoUpdater\UpdateNotAvailable;
+use Native\Desktop\Events\AutoUpdater\DownloadProgress;
+use Native\Desktop\Events\AutoUpdater\UpdateDownloaded;
+use Native\Desktop\Events\AutoUpdater\Error;
+
+Event::listen(CheckingForUpdate::class, function () {
+    // Show "checking for updates" UI
+});
+
+Event::listen(UpdateAvailable::class, function ($event) {
+    Notification::new()
+        ->title('Update Available')
+        ->message('Version ' . $event->version . ' is available')
+        ->show();
+});
+
+Event::listen(DownloadProgress::class, function ($event) {
+    $percent = $event->percent;
+    // Update progress bar
+});
+
+Event::listen(UpdateDownloaded::class, function () {
+    // Prompt user to restart
+});
+```
+
+### Child Process Events
+
+Events from spawned child processes:
+
+```php
+use Native\Desktop\Events\ChildProcess\ProcessSpawned;
+use Native\Desktop\Events\ChildProcess\ProcessExited;
+use Native\Desktop\Events\ChildProcess\MessageReceived;
+use Native\Desktop\Events\ChildProcess\ErrorReceived;
+
+Event::listen(ProcessSpawned::class, function ($event) {
+    Log::info('Process started: ' . $event->pid);
+});
+
+Event::listen(MessageReceived::class, function ($event) {
+    $message = $event->message;
+    // Handle stdout from process
+});
+
+Event::listen(ErrorReceived::class, function ($event) {
+    $error = $event->error;
+    // Handle stderr from process
+});
+
+Event::listen(ProcessExited::class, function ($event) {
+    $code = $event->exitCode;
+    Log::info('Process exited with code: ' . $code);
+});
+```
+
+### Menu Bar Events
+
+Events from system tray/menu bar interactions:
+
+```php
+use Native\Desktop\Events\MenuBar\MenuBarClicked;
+use Native\Desktop\Events\MenuBar\MenuBarDoubleClicked;
+use Native\Desktop\Events\MenuBar\MenuBarRightClicked;
+use Native\Desktop\Events\MenuBar\MenuBarDroppedFiles;
+
+Event::listen(MenuBarClicked::class, function () {
+    // Single click on menu bar icon
+});
+
+Event::listen(MenuBarRightClicked::class, function () {
+    // Right/context click
+});
+
+Event::listen(MenuBarDroppedFiles::class, function ($event) {
+    $files = $event->files;
+    // Handle dropped files
+});
+```
+
+## Listening to Events
+
+Register event listeners in your `EventServiceProvider`:
+
+```php
+protected $listen = [
+    WindowClosed::class => [
+        CleanupWindowState::class,
+    ],
+    MenuItemClicked::class => [
+        HandleMenuClick::class,
+    ],
+    NotificationClicked::class => [
+        HandleNotificationClick::class,
+    ],
+];
+```
+
+Or use closure-based listeners:
+
+```php
+use Illuminate\Support\Facades\Event;
+use Native\Desktop\Events\Windows\WindowFocused;
+
+Event::listen(WindowFocused::class, function ($event) {
+    Cache::put('last_focused_window', $event->id);
+});
+```
+
+## Event Broadcasting Requirements
+
+For events to be broadcast to the native runtime:
+
+1. **Implement `ShouldBroadcastNow`** (not `ShouldBroadcast`)
+2. **Broadcast on the `nativephp` channel**
+3. **Not be in the `Native\Desktop\Events` namespace** (to avoid loops)
+
+```php
+use Illuminate\Broadcasting\Channel;
+use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
+
+class MyCustomEvent implements ShouldBroadcastNow
+{
+    public function broadcastOn()
+    {
+        return [new Channel('nativephp')];
+    }
+}
+```
+
+<Note>
+  Use `ShouldBroadcastNow` instead of `ShouldBroadcast` to ensure events are sent immediately without queue delays.
+</Note>
+
+## Complete Example
+
+Here's a complete example using multiple events:
+
+```php
+use Native\Desktop\Events\Windows\WindowFocused;
+use Native\Desktop\Events\Windows\WindowClosed;
+use Native\Desktop\Events\Menu\MenuItemClicked;
+use Native\Desktop\Facades\Window;
+use Illuminate\Support\Facades\Event;
+
+// Track active window
+Event::listen(WindowFocused::class, function ($event) {
+    Cache::put('active_window', $event->id);
+});
+
+// Cleanup when window closes
+Event::listen(WindowClosed::class, function ($event) {
+    if ($event->id === 'settings') {
+        Cache::forget('settings_modified');
+    }
+});
+
+// Handle menu interactions
+Event::listen(MenuItemClicked::class, function ($event) {
+    match($event->item['label']) {
+        'Preferences' => Window::open('settings')
+            ->title('Settings')
+            ->width(800)
+            ->height(600),
+        'About' => Window::open('about')
+            ->width(400)
+            ->height(300)
+            ->resizable(false),
+        default => null,
+    };
+});
+```

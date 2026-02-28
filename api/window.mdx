@@ -1,0 +1,824 @@
+---
+title: Window API
+description: Complete API reference for window management in NativePHP Desktop
+---
+
+# Window API
+
+The Window API provides methods to create, manage, and control application windows in NativePHP Desktop.
+
+## Opening Windows
+
+### Native\Desktop\Facades\Window::open()
+
+Create a new window with the specified ID.
+
+<ParamField path="id" type="string" default="main">
+  Unique identifier for the window
+</ParamField>
+
+<ResponseField name="PendingOpenWindow" type="object">
+  Returns a PendingOpenWindow instance for configuring the window before it opens
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\Window;
+
+// Open the main window
+Window::open('main')
+    ->title('My Application')
+    ->url('https://example.com')
+    ->width(800)
+    ->height(600);
+
+// Open a secondary window
+Window::open('settings')
+    ->title('Settings')
+    ->route('settings')
+    ->width(600)
+    ->height(400);
+```
+
+## Window Management
+
+### close()
+
+Close a window by its ID.
+
+<ParamField path="id" type="string|null" default="null">
+  Window ID to close. If null, closes the current window.
+</ParamField>
+
+```php
+Window::close('settings');
+Window::close(); // Closes current window
+```
+
+### hide()
+
+Hide a window without closing it.
+
+<ParamField path="id" type="string|null" default="null">
+  Window ID to hide. If null, hides the current window.
+</ParamField>
+
+```php
+Window::hide('main');
+```
+
+### show()
+
+Show a previously hidden window.
+
+<ParamField path="id" type="string|null" default="null">
+  Window ID to show. If null, shows the current window.
+</ParamField>
+
+```php
+Window::show('main');
+```
+
+### current()
+
+Get the current window instance.
+
+<ResponseField name="Window" type="object">
+  Returns the current Window object with all properties
+</ResponseField>
+
+```php
+$currentWindow = Window::current();
+echo $currentWindow->id;
+echo $currentWindow->title;
+```
+
+### all()
+
+Get all open windows.
+
+<ResponseField name="windows" type="array">
+  Returns an array of Window objects
+</ResponseField>
+
+```php
+$windows = Window::all();
+foreach ($windows as $window) {
+    echo $window->id;
+}
+```
+
+### get()
+
+Get a specific window by its ID.
+
+<ParamField path="id" type="string" required>
+  Window ID to retrieve
+</ParamField>
+
+<ResponseField name="Window" type="object">
+  Returns the Window object
+</ResponseField>
+
+```php
+$settingsWindow = Window::get('settings');
+```
+
+## Window Sizing
+
+### resize()
+
+Resize a window to the specified dimensions.
+
+<ParamField path="width" type="int" required>
+  New width in pixels
+</ParamField>
+
+<ParamField path="height" type="int" required>
+  New height in pixels
+</ParamField>
+
+<ParamField path="id" type="string|null" default="null">
+  Window ID to resize. If null, resizes the current window.
+</ParamField>
+
+```php
+Window::resize(1024, 768, 'main');
+```
+
+### position()
+
+Set the window position on screen.
+
+<ParamField path="x" type="int" required>
+  X coordinate in pixels
+</ParamField>
+
+<ParamField path="y" type="int" required>
+  Y coordinate in pixels
+</ParamField>
+
+<ParamField path="animated" type="bool" default="false">
+  Whether to animate the position change
+</ParamField>
+
+<ParamField path="id" type="string|null" default="null">
+  Window ID to position. If null, positions the current window.
+</ParamField>
+
+```php
+Window::position(100, 100, true, 'main');
+```
+
+### maximize()
+
+Maximize a window.
+
+<ParamField path="id" type="string|null" default="null">
+  Window ID to maximize. If null, maximizes the current window.
+</ParamField>
+
+```php
+Window::maximize('main');
+```
+
+### minimize()
+
+Minimize a window.
+
+<ParamField path="id" type="string|null" default="null">
+  Window ID to minimize. If null, minimizes the current window.
+</ParamField>
+
+```php
+Window::minimize('main');
+```
+
+## Window Behavior
+
+### alwaysOnTop()
+
+Set whether the window should always stay on top of other windows.
+
+<ParamField path="alwaysOnTop" type="bool" default="true">
+  Whether to keep window on top
+</ParamField>
+
+<ParamField path="id" type="string|null" default="null">
+  Window ID. If null, applies to the current window.
+</ParamField>
+
+```php
+Window::alwaysOnTop(true, 'main');
+```
+
+### reload()
+
+Reload the window's content.
+
+<ParamField path="id" type="string|null" default="null">
+  Window ID to reload. If null, reloads the current window.
+</ParamField>
+
+```php
+Window::reload('main');
+```
+
+## Window Configuration Methods
+
+These methods are chainable and used when opening a window:
+
+### title()
+
+Set the window title.
+
+<ParamField path="title" type="string" required>
+  Window title text
+</ParamField>
+
+```php
+Window::open()->title('My Application');
+```
+
+### url()
+
+Set the window URL.
+
+<ParamField path="url" type="string" required>
+  Full URL to load in the window
+</ParamField>
+
+```php
+Window::open()->url('https://example.com');
+```
+
+### route()
+
+Set the window URL using a Laravel route name.
+
+<ParamField path="route" type="string" required>
+  Laravel route name
+</ParamField>
+
+<ParamField path="parameters" type="array" default="[]">
+  Route parameters
+</ParamField>
+
+```php
+Window::open()->route('dashboard');
+Window::open()->route('user.profile', ['id' => 1]);
+```
+
+### width()
+
+Set the window width.
+
+<ParamField path="width" type="int" required>
+  Width in pixels
+</ParamField>
+
+```php
+Window::open()->width(800);
+```
+
+### height()
+
+Set the window height.
+
+<ParamField path="height" type="int" required>
+  Height in pixels
+</ParamField>
+
+```php
+Window::open()->height(600);
+```
+
+### minWidth() / minHeight()
+
+Set minimum dimensions for the window.
+
+<ParamField path="width" type="int" required>
+  Minimum width in pixels
+</ParamField>
+
+<ParamField path="height" type="int" required>
+  Minimum height in pixels
+</ParamField>
+
+```php
+Window::open()
+    ->minWidth(400)
+    ->minHeight(300);
+```
+
+### maxWidth() / maxHeight()
+
+Set maximum dimensions for the window.
+
+<ParamField path="width" type="int" required>
+  Maximum width in pixels
+</ParamField>
+
+<ParamField path="height" type="int" required>
+  Maximum height in pixels
+</ParamField>
+
+```php
+Window::open()
+    ->maxWidth(1920)
+    ->maxHeight(1080);
+```
+
+### resizable()
+
+Set whether the window can be resized.
+
+<ParamField path="resizable" type="bool" default="true">
+  Whether window is resizable
+</ParamField>
+
+```php
+Window::open()->resizable(false);
+```
+
+### movable()
+
+Set whether the window can be moved.
+
+<ParamField path="movable" type="bool" default="true">
+  Whether window is movable
+</ParamField>
+
+```php
+Window::open()->movable(false);
+```
+
+### minimizable()
+
+Set whether the window can be minimized.
+
+<ParamField path="minimizable" type="bool" default="true">
+  Whether window is minimizable
+</ParamField>
+
+```php
+Window::open()->minimizable(true);
+```
+
+### maximizable()
+
+Set whether the window can be maximized.
+
+<ParamField path="maximizable" type="bool" default="true">
+  Whether window is maximizable
+</ParamField>
+
+```php
+Window::open()->maximizable(true);
+```
+
+### closable()
+
+Set whether the window can be closed.
+
+<ParamField path="closable" type="bool" default="true">
+  Whether window is closable
+</ParamField>
+
+```php
+Window::open()->closable(true);
+```
+
+### focusable()
+
+Set whether the window can receive focus.
+
+<ParamField path="focusable" type="bool" default="true">
+  Whether window is focusable
+</ParamField>
+
+```php
+Window::open()->focusable(true);
+```
+
+### alwaysOnTop()
+
+Set whether the window stays on top of other windows.
+
+<ParamField path="alwaysOnTop" type="bool" default="true">
+  Whether window stays on top
+</ParamField>
+
+```php
+Window::open()->alwaysOnTop(true);
+```
+
+### skipTaskbar()
+
+Set whether to hide the window from the taskbar.
+
+<ParamField path="skipTaskbar" type="bool" default="true">
+  Whether to skip taskbar
+</ParamField>
+
+```php
+Window::open()->skipTaskbar(true);
+```
+
+### hiddenInMissionControl()
+
+Set whether to hide the window in macOS Mission Control.
+
+<ParamField path="hidden" type="bool" default="true">
+  Whether to hide in Mission Control
+</ParamField>
+
+```php
+Window::open()->hiddenInMissionControl(true);
+```
+
+### hasShadow()
+
+Set whether the window has a shadow.
+
+<ParamField path="hasShadow" type="bool" default="true">
+  Whether window has shadow
+</ParamField>
+
+```php
+Window::open()->hasShadow(false);
+```
+
+## Window Appearance
+
+### frameless()
+
+Create a window without a frame.
+
+```php
+Window::open()->frameless();
+```
+
+### titleBarStyle()
+
+Set the title bar style.
+
+<ParamField path="style" type="string" required>
+  Style: 'default', 'hidden', 'hiddenInset', 'customButtonsOnHover'
+</ParamField>
+
+```php
+Window::open()->titleBarStyle('hidden');
+```
+
+### titleBarHidden()
+
+Hide the title bar.
+
+```php
+Window::open()->titleBarHidden();
+```
+
+### titleBarHiddenInset()
+
+Hide the title bar with inset style.
+
+```php
+Window::open()->titleBarHiddenInset();
+```
+
+### titleBarButtonsOnHover()
+
+Show title bar buttons only on hover.
+
+```php
+Window::open()->titleBarButtonsOnHover();
+```
+
+### trafficLightPosition()
+
+Set the position of macOS traffic light buttons.
+
+<ParamField path="x" type="int" required>
+  X coordinate in pixels
+</ParamField>
+
+<ParamField path="y" type="int" required>
+  Y coordinate in pixels
+</ParamField>
+
+```php
+Window::open()->trafficLightPosition(20, 20);
+```
+
+### trafficLightsHidden()
+
+Hide the macOS traffic light buttons.
+
+```php
+Window::open()->trafficLightsHidden();
+```
+
+### windowButtonVisibility()
+
+Set the visibility of window buttons.
+
+<ParamField path="visible" type="bool" default="true">
+  Whether buttons are visible
+</ParamField>
+
+```php
+Window::open()->windowButtonVisibility(false);
+```
+
+### backgroundColor()
+
+Set the window background color.
+
+<ParamField path="color" type="string" required>
+  Hex color code (e.g., '#FFFFFF')
+</ParamField>
+
+```php
+Window::open()->backgroundColor('#1a1a1a');
+```
+
+### transparent()
+
+Make the window background transparent.
+
+<ParamField path="transparent" type="bool" default="true">
+  Whether window is transparent
+</ParamField>
+
+```php
+Window::open()->transparent();
+```
+
+### vibrancy()
+
+Set the vibrancy effect (macOS).
+
+<ParamField path="vibrancy" type="string" required>
+  Vibrancy type: 'appearance-based', 'light', 'dark', 'under-window'
+</ParamField>
+
+```php
+Window::open()->vibrancy('dark');
+```
+
+### lightVibrancy()
+
+Apply light vibrancy effect.
+
+```php
+Window::open()->lightVibrancy();
+```
+
+### darkVibrancy()
+
+Apply dark vibrancy effect.
+
+```php
+Window::open()->darkVibrancy();
+```
+
+### blendBackgroundBehindWindow()
+
+Blend the content behind the window.
+
+```php
+Window::open()->blendBackgroundBehindWindow();
+```
+
+### invisibleFrameless()
+
+Create an invisible frameless window (useful for overlays).
+
+```php
+Window::open()->invisibleFrameless();
+```
+
+## Developer Tools
+
+### showDevTools()
+
+Show developer tools in the window.
+
+<ParamField path="show" type="bool" default="true">
+  Whether to show dev tools
+</ParamField>
+
+```php
+Window::open()->showDevTools();
+$window->showDevTools(); // On existing window
+```
+
+### hideDevTools()
+
+Hide developer tools.
+
+```php
+$window = Window::current();
+$window->hideDevTools();
+```
+
+### devToolsOpen()
+
+Check if developer tools are open.
+
+<ResponseField name="open" type="bool">
+  Returns true if dev tools are open
+</ResponseField>
+
+```php
+$window = Window::current();
+if ($window->devToolsOpen()) {
+    // Dev tools are open
+}
+```
+
+## Fullscreen & Kiosk
+
+### fullscreen()
+
+Set the window to fullscreen mode.
+
+<ParamField path="fullscreen" type="bool" default="true">
+  Whether window is fullscreen
+</ParamField>
+
+```php
+Window::open()->fullscreen();
+```
+
+### fullscreenable()
+
+Set whether the window can enter fullscreen.
+
+<ParamField path="fullscreenable" type="bool" default="true">
+  Whether window can be fullscreen
+</ParamField>
+
+```php
+Window::open()->fullscreenable(false);
+```
+
+### kiosk()
+
+Set the window to kiosk mode.
+
+<ParamField path="kiosk" type="bool" default="true">
+  Whether window is in kiosk mode
+</ParamField>
+
+```php
+Window::open()->kiosk();
+```
+
+### hideMenu()
+
+Auto-hide the menu bar.
+
+<ParamField path="autoHide" type="bool" default="true">
+  Whether to auto-hide the menu bar
+</ParamField>
+
+```php
+Window::open()->hideMenu();
+```
+
+## Advanced Options
+
+### rememberState()
+
+Remember window size and position between sessions.
+
+```php
+Window::open()->rememberState();
+```
+
+### zoomFactor()
+
+Set the zoom level for the window content.
+
+<ParamField path="zoomFactor" type="float" default="1.0">
+  Zoom factor (1.0 = 100%)
+</ParamField>
+
+```php
+Window::open()->zoomFactor(1.5); // 150% zoom
+$window->zoomFactor(0.8); // 80% zoom on existing window
+```
+
+### webPreferences()
+
+Set Electron web preferences.
+
+<ParamField path="preferences" type="array" required>
+  Array of web preference options
+</ParamField>
+
+```php
+Window::open()->webPreferences([
+    'nodeIntegration' => false,
+    'contextIsolation' => true,
+]);
+```
+
+### preventLeaveDomain()
+
+Prevent navigation outside the application domain.
+
+<ParamField path="prevent" type="bool" default="true">
+  Whether to prevent leaving domain
+</ParamField>
+
+```php
+Window::open()->preventLeaveDomain();
+```
+
+### preventLeavePage()
+
+Prevent navigation away from the current page.
+
+<ParamField path="prevent" type="bool" default="true">
+  Whether to prevent leaving page
+</ParamField>
+
+```php
+Window::open()->preventLeavePage();
+```
+
+### suppressNewWindows()
+
+Suppress opening of new windows.
+
+```php
+Window::open()->suppressNewWindows();
+```
+
+### afterOpen()
+
+Execute a callback after the window opens.
+
+<ParamField path="callback" type="callable" required>
+  Callback function to execute
+</ParamField>
+
+```php
+Window::open()
+    ->afterOpen(function ($window) {
+        // Window has opened
+        Log::info('Window opened: ' . $window->getId());
+    });
+```
+
+### minimized()
+
+Open the window minimized.
+
+```php
+Window::open()->minimized();
+```
+
+### maximized()
+
+Open the window maximized.
+
+```php
+Window::open()->maximized();
+```
+
+## Complete Example
+
+```php
+use Native\Desktop\Facades\Window;
+
+// Create a customized window
+Window::open('dashboard')
+    ->title('Dashboard')
+    ->route('dashboard')
+    ->width(1200)
+    ->height(800)
+    ->minWidth(800)
+    ->minHeight(600)
+    ->titleBarHidden()
+    ->trafficLightPosition(20, 20)
+    ->vibrancy('dark')
+    ->transparent()
+    ->rememberState()
+    ->showDevTools(config('app.debug'))
+    ->preventLeaveDomain()
+    ->afterOpen(function ($window) {
+        Log::info('Dashboard window opened');
+    });
+
+// Get and manipulate existing window
+$window = Window::get('dashboard');
+$window->title('Dashboard - Updated');
+$window->url(route('dashboard.updated'));
+
+// Manage window state
+Window::maximize('dashboard');
+Window::position(0, 0, true, 'dashboard');
+```

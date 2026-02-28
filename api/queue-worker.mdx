@@ -1,0 +1,135 @@
+---
+title: QueueWorker
+description: API reference for managing Laravel queue workers in NativePHP Desktop applications
+---
+
+The `QueueWorker` class provides a simple interface to start and stop Laravel queue workers as persistent child processes in your NativePHP application.
+
+## Available Methods
+
+### up()
+
+Start a queue worker process.
+
+<ParamField path="config" type="string|QueueConfig" required>
+  Either a string alias referencing a queue worker configuration in your `config/nativephp.php` file, or a `QueueConfig` object.
+</ParamField>
+
+When using a string alias, the configuration is loaded from `config/nativephp.php` under the `queue_workers` key.
+
+```php
+use Native\Desktop\Facades\QueueWorker;
+
+// Using a config alias
+QueueWorker::up('default');
+
+// Using a QueueConfig object
+use Native\Desktop\DataObjects\QueueConfig;
+
+$config = new QueueConfig(
+    alias: 'notifications',
+    queuesToConsume: ['emails', 'sms'],
+    memoryLimit: 256,
+    timeout: 120,
+    sleep: 3
+);
+
+QueueWorker::up($config);
+```
+
+### down()
+
+Stop a running queue worker process.
+
+<ParamField path="alias" type="string" required>
+  The alias of the queue worker to stop.
+</ParamField>
+
+```php
+use Native\Desktop\Facades\QueueWorker;
+
+QueueWorker::down('default');
+```
+
+## Configuration
+
+Queue workers are configured in your `config/nativephp.php` file under the `queue_workers` key:
+
+```php
+'queue_workers' => [
+    'default' => [
+        'queues' => ['default'],
+        'memory_limit' => 128,
+        'timeout' => 60,
+        'sleep' => 3,
+    ],
+    'notifications' => [
+        'queues' => ['emails', 'sms', 'push'],
+        'memory_limit' => 256,
+        'timeout' => 120,
+        'sleep' => 5,
+    ],
+],
+```
+
+### Configuration Options
+
+<ParamField path="queues" type="array" required>
+  An array of queue names that this worker should consume.
+</ParamField>
+
+<ParamField path="memory_limit" type="int" default="128">
+  The memory limit in megabytes for the worker process.
+</ParamField>
+
+<ParamField path="timeout" type="int" default="60">
+  The number of seconds a job can run before timing out.
+</ParamField>
+
+<ParamField path="sleep" type="int" default="3">
+  The number of seconds to sleep when no job is available.
+</ParamField>
+
+## How It Works
+
+Under the hood, `QueueWorker` uses the `ChildProcess` API to spawn persistent Artisan queue worker processes. The worker automatically:
+
+- Uses `queue:listen` in local environment and `queue:work` in production
+- Runs as a persistent process that restarts automatically if it fails
+- Sets appropriate memory limits for both the process and PHP
+- Prefixes the process alias with `queue_` to avoid conflicts
+
+## Example Usage
+
+Start queue workers automatically when your application boots:
+
+```php
+namespace App\Providers;
+
+use Native\Desktop\Facades\QueueWorker;
+use Native\Laravel\Facades\Window;
+
+class NativeAppServiceProvider
+{
+    public function boot(): void
+    {
+        Window::open();
+        
+        // Start the default queue worker
+        QueueWorker::up('default');
+        
+        // Start a dedicated notifications worker
+        QueueWorker::up('notifications');
+    }
+}
+```
+
+Stop a queue worker gracefully:
+
+```php
+use Native\Desktop\Facades\QueueWorker;
+
+// In a shutdown method or event listener
+QueueWorker::down('default');
+QueueWorker::down('notifications');
+```

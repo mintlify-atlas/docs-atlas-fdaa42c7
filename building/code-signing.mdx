@@ -1,0 +1,366 @@
+---
+title: Code Signing
+description: Sign your NativePHP applications for macOS and Windows distribution with proper certificates and notarization
+---
+
+## Overview
+
+Code signing is essential for distributing desktop applications. It verifies that your application comes from a trusted source and hasn't been tampered with. Different platforms have different requirements:
+
+- **macOS**: Requires code signing and notarization for Gatekeeper
+- **Windows**: Requires code signing to avoid SmartScreen warnings
+- **Linux**: Optional, but recommended for some distributions
+
+<Warning>
+Without proper code signing, users will see security warnings when trying to install or run your application.
+</Warning>
+
+## macOS Code Signing
+
+NativePHP includes built-in support for macOS code signing and notarization using Apple's notarytool.
+
+### Prerequisites
+
+<Steps>
+  <Step title="Apple Developer Account">
+    You need an active Apple Developer Program membership ($99/year).
+  </Step>
+  
+  <Step title="Developer Certificate">
+    Obtain a "Developer ID Application" certificate from your Apple Developer account.
+  </Step>
+  
+  <Step title="App-Specific Password">
+    Generate an app-specific password for notarization at [appleid.apple.com](https://appleid.apple.com).
+  </Step>
+</Steps>
+
+### Configuration
+
+Set the following environment variables in your `.env` file:
+
+```bash .env
+NATIVEPHP_APPLE_ID=your-apple-id@example.com
+NATIVEPHP_APPLE_ID_PASS=xxxx-xxxx-xxxx-xxxx
+NATIVEPHP_APPLE_TEAM_ID=XXXXXXXXXX
+NATIVEPHP_APP_ID=com.yourcompany.yourapp
+```
+
+<Note>
+Your Team ID can be found in your Apple Developer account under Membership Details.
+</Note>
+
+### Notarization Process
+
+NativePHP automatically handles notarization after the build is signed:
+
+```javascript
+// resources/electron/build/notarize.js:24
+await notarize({
+    appBundleId: appId,
+    appPath: `${appOutDir}/${appName}.app`,
+    appleId: process.env.NATIVEPHP_APPLE_ID,
+    appleIdPassword: process.env.NATIVEPHP_APPLE_ID_PASS,
+    teamId: process.env.NATIVEPHP_APPLE_TEAM_ID,
+    tool: 'notarytool',
+})
+```
+
+The notarization happens automatically during the build process:
+
+<Steps>
+  <Step title="Build and Sign">
+    Electron Builder signs your application with your Developer ID certificate.
+  </Step>
+  
+  <Step title="Submit for Notarization">
+    The `afterSign` hook submits your app to Apple's notarization service.
+  </Step>
+  
+  <Step title="Wait for Approval">
+    Apple's servers scan your app (usually takes a few minutes).
+  </Step>
+  
+  <Step title="Staple Ticket">
+    The notarization ticket is stapled to your application bundle.
+  </Step>
+</Steps>
+
+### Entitlements
+
+NativePHP includes macOS entitlements for common permissions:
+
+```javascript
+// resources/electron/electron-builder.mjs:104
+mac: {
+    entitlementsInherit: 'build/entitlements.mac.plist',
+    extendInfo: {
+        NSCameraUsageDescription: "Application requests access to the device's camera.",
+        NSMicrophoneUsageDescription: "Application requests access to the device's microphone.",
+        NSDocumentsFolderUsageDescription: "Application requests access to the user's Documents folder.",
+        NSDownloadsFolderUsageDescription: "Application requests access to the user's Downloads folder.",
+    },
+}
+```
+
+<Info>
+These usage descriptions appear in permission dialogs when your app requests access to protected resources.
+</Info>
+
+### Platform Detection
+
+The notarization script only runs when building for macOS:
+
+```javascript
+// resources/electron/build/notarize.js:4
+if (process.platform !== 'darwin') return;
+if (context.packager.platform.name !== 'mac') return;
+```
+
+This allows you to build for multiple platforms without worrying about platform-specific code signing.
+
+## Windows Code Signing
+
+Windows code signing prevents SmartScreen warnings and establishes trust with your users.
+
+### Traditional Code Signing
+
+**Requirements:**
+- A valid code signing certificate from a trusted CA (DigiCert, Sectigo, etc.)
+- The certificate in PFX format with password
+
+**Configuration:**
+
+```bash .env
+WIN_CSC_LINK=/path/to/certificate.pfx
+WIN_CSC_KEY_PASSWORD=your-certificate-password
+```
+
+Electron Builder automatically detects these environment variables and signs your Windows executable.
+
+### Azure Trusted Signing (Cloud-Based)
+
+NativePHP supports Azure Trusted Signing, a cloud-based code signing solution:
+
+```bash .env
+NATIVEPHP_AZURE_ENDPOINT=https://eus.codesigning.azure.net/
+NATIVEPHP_AZURE_CERTIFICATE_PROFILE_NAME=YourProfileName
+NATIVEPHP_AZURE_CODE_SIGNING_ACCOUNT_NAME=YourAccountName
+```
+
+```javascript
+// resources/electron/electron-builder.mjs:86
+win: {
+    executableName: fileName,
+    ...(azureEndpoint && azureCertificateProfileName && azureCodeSigningAccountName ? {
+        azureSignOptions: {
+            endpoint: azureEndpoint,
+            certificateProfileName: azureCertificateProfileName,
+            codeSigningAccountName: azureCodeSigningAccountName
+        }
+    } : {}),
+}
+```
+
+<Tabs>
+  <Tab title="Traditional Certificate">
+    **Pros:**
+    - One-time purchase
+    - Works offline
+    - Full control over private key
+    
+    **Cons:**
+    - Certificate management complexity
+    - Risk of key compromise
+    - Annual renewal required
+  </Tab>
+  
+  <Tab title="Azure Trusted Signing">
+    **Pros:**
+    - Cloud-based HSM security
+    - No certificate management
+    - Pay-as-you-go pricing
+    - Instant revocation
+    
+    **Cons:**
+    - Requires Azure account
+    - Internet connection required
+    - Ongoing subscription cost
+  </Tab>
+</Tabs>
+
+### Building Reputation
+
+Even with a valid certificate, Windows SmartScreen may show warnings for new applications. Building reputation requires:
+
+1. **Consistent Signing**: Always sign with the same certificate
+2. **User Downloads**: More users downloading and running your app
+3. **Time**: Reputation builds over weeks/months
+4. **Extended Validation (EV) Certificate**: Provides instant reputation
+
+<Note>
+EV certificates provide immediate SmartScreen reputation but are more expensive and require hardware tokens.
+</Note>
+
+## Linux Code Signing
+
+Linux doesn't have platform-wide code signing requirements, but some distributions support it:
+
+### AppImage Signing
+
+AppImages can be signed with GPG:
+
+```bash
+# Sign the AppImage
+gpg --detach-sign YourApp-1.0.0.AppImage
+
+# Verify the signature
+gpg --verify YourApp-1.0.0.AppImage.sig YourApp-1.0.0.AppImage
+```
+
+### Debian Package Signing
+
+For `.deb` packages, you can sign with `dpkg-sig`:
+
+```bash
+# Sign the package
+dpkg-sig --sign builder YourApp-1.0.0.deb
+
+# Verify the signature
+dpkg-sig --verify YourApp-1.0.0.deb
+```
+
+<Info>
+Linux signing is optional but recommended for enterprise distributions and repositories.
+</Info>
+
+## Security Best Practices
+
+<AccordionGroup>
+  <Accordion title="Protect Your Signing Credentials">
+    - Never commit signing credentials to version control
+    - Use environment variables or secure secret management
+    - Rotate app-specific passwords regularly
+    - Use hardware security modules (HSMs) for production
+  </Accordion>
+  
+  <Accordion title="Clean Environment Variables">
+    NativePHP automatically removes signing credentials from your bundled `.env` file:
+    
+    ```php
+    // config/nativephp.php:61
+    'cleanup_env_keys' => [
+        'NATIVEPHP_APPLE_ID',
+        'NATIVEPHP_APPLE_ID_PASS',
+        'NATIVEPHP_APPLE_TEAM_ID',
+        'NATIVEPHP_AZURE_PUBLISHER_NAME',
+        'NATIVEPHP_AZURE_ENDPOINT',
+        'NATIVEPHP_AZURE_CERTIFICATE_PROFILE_NAME',
+        'NATIVEPHP_AZURE_CODE_SIGNING_ACCOUNT_NAME',
+    ],
+    ```
+  </Accordion>
+  
+  <Accordion title="Separate Development and Production">
+    - Use different certificates for development and production
+    - Don't sign development builds
+    - Sign only final release builds
+  </Accordion>
+  
+  <Accordion title="Verify Signed Applications">
+    After signing, verify your applications:
+    
+    **macOS:**
+    ```bash
+    codesign --verify --verbose YourApp.app
+    spctl -a -v YourApp.app
+    ```
+    
+    **Windows:**
+    ```powershell
+    Get-AuthenticodeSignature YourApp.exe
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## CI/CD Integration
+
+For automated builds, store signing credentials in your CI/CD secrets:
+
+### GitHub Actions Example
+
+```yaml
+name: Build and Sign
+
+on:
+  release:
+    types: [created]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Build and Sign
+        env:
+          NATIVEPHP_APPLE_ID: ${{ secrets.APPLE_ID }}
+          NATIVEPHP_APPLE_ID_PASS: ${{ secrets.APPLE_ID_PASS }}
+          NATIVEPHP_APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          npm run build:mac
+```
+
+<Warning>
+Never log or print signing credentials in CI/CD output. They should only be accessed through environment variables.
+</Warning>
+
+## Troubleshooting
+
+### macOS Notarization Fails
+
+**Issue**: Notarization returns errors from Apple.
+
+**Solutions**:
+- Verify your Apple ID and app-specific password are correct
+- Ensure your Team ID matches your Developer account
+- Check that your app bundle ID matches `NATIVEPHP_APP_ID`
+- Review Apple's notarization logs for specific issues
+
+### Windows SmartScreen Warnings
+
+**Issue**: Users see "Windows protected your PC" warnings.
+
+**Solutions**:
+- Verify your certificate is properly installed
+- Check that the certificate is from a trusted CA
+- Build reputation over time with consistent signing
+- Consider an EV certificate for instant reputation
+
+### Missing Environment Variables
+
+**Issue**: Notarization is skipped.
+
+```javascript
+// resources/electron/build/notarize.js:12
+if (!('NATIVEPHP_APPLE_ID' in process.env && 
+      'NATIVEPHP_APPLE_ID_PASS' in process.env && 
+      'NATIVEPHP_APPLE_TEAM_ID' in process.env)) {
+    console.warn('skipping notarizing, environment variables must be set.');
+    return;
+}
+```
+
+**Solution**: Ensure all required environment variables are set in your `.env` file.
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Auto-Updates" icon="arrow-up" href="/features/auto-updater">
+    Configure automatic updates for your signed applications
+  </Card>
+  
+  <Card title="Build Configuration" icon="gear" href="/building/configuration">
+    Learn about build configuration options
+  </Card>
+</CardGroup>

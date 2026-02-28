@@ -1,0 +1,271 @@
+---
+title: Updater
+description: API reference for the AutoUpdater in NativePHP Desktop applications
+---
+
+The `AutoUpdater` class provides methods to check for, download, and install application updates. It integrates with various update providers including GitHub Releases, AWS S3, and DigitalOcean Spaces.
+
+## Available Methods
+
+### checkForUpdates()
+
+Check if a new version of your application is available.
+
+```php
+use Native\Desktop\Facades\AutoUpdater;
+
+AutoUpdater::checkForUpdates();
+```
+
+This method triggers the update check process. The updater compares your current application version (defined in `config/nativephp.php`) with the latest available version from your configured update provider.
+
+You can listen for update events to respond to the check results:
+
+```php
+use Native\Desktop\Events\Updates\UpdateAvailable;
+use Native\Desktop\Events\Updates\NoUpdateAvailable;
+
+Event::listen(UpdateAvailable::class, function ($event) {
+    // A new update is available
+    // Show notification to user
+});
+
+Event::listen(NoUpdateAvailable::class, function () {
+    // App is up to date
+});
+```
+
+### downloadUpdate()
+
+Download the available update without installing it.
+
+```php
+use Native\Desktop\Facades\AutoUpdater;
+
+AutoUpdater::downloadUpdate();
+```
+
+This method downloads the update in the background. You can listen for download progress events:
+
+```php
+use Native\Desktop\Events\Updates\UpdateDownloadProgress;
+use Native\Desktop\Events\Updates\UpdateDownloaded;
+
+Event::listen(UpdateDownloadProgress::class, function ($event) {
+    // $event->bytesPerSecond
+    // $event->percent
+    // $event->transferred
+    // $event->total
+});
+
+Event::listen(UpdateDownloaded::class, function () {
+    // Download complete, ready to install
+});
+```
+
+### quitAndInstall()
+
+Quit the application and install the downloaded update.
+
+```php
+use Native\Desktop\Facades\AutoUpdater;
+
+AutoUpdater::quitAndInstall();
+```
+
+This method immediately closes your application and begins the update installation process. After installation, the application will restart automatically with the new version.
+
+<Note>
+Make sure the update has been downloaded before calling this method. Otherwise, it will have no effect.
+</Note>
+
+## Configuration
+
+The updater is configured in your `config/nativephp.php` file:
+
+```php
+'updater' => [
+    'enabled' => env('NATIVEPHP_UPDATER_ENABLED', true),
+    'default' => env('NATIVEPHP_UPDATER_PROVIDER', 'spaces'),
+    
+    'providers' => [
+        // Provider configurations
+    ],
+],
+```
+
+### Updater Options
+
+<ParamField path="enabled" type="bool" default="true">
+  Whether the updater is enabled. The updater only works in production builds.
+</ParamField>
+
+<ParamField path="default" type="string" default="spaces">
+  The default update provider to use. Supported values: `github`, `s3`, `spaces`.
+</ParamField>
+
+### GitHub Provider
+
+Use GitHub Releases to distribute your updates:
+
+```php
+'github' => [
+    'driver' => 'github',
+    'repo' => env('GITHUB_REPO'),
+    'owner' => env('GITHUB_OWNER'),
+    'token' => env('GITHUB_TOKEN'),
+    'vPrefixedTagName' => env('GITHUB_V_PREFIXED_TAG_NAME', true),
+    'private' => env('GITHUB_PRIVATE', false),
+    'autoupdate_token' => env('GITHUB_AUTOUPDATE_TOKEN'),
+    'channel' => env('GITHUB_CHANNEL', 'latest'),
+    'releaseType' => env('GITHUB_RELEASE_TYPE', 'draft'),
+],
+```
+
+<ParamField path="repo" type="string" required>
+  Your GitHub repository name.
+</ParamField>
+
+<ParamField path="owner" type="string" required>
+  The GitHub username or organization that owns the repository.
+</ParamField>
+
+<ParamField path="token" type="string">
+  GitHub personal access token for accessing private repositories.
+</ParamField>
+
+<ParamField path="vPrefixedTagName" type="bool" default="true">
+  Whether your release tags are prefixed with 'v' (e.g., v1.0.0).
+</ParamField>
+
+<ParamField path="private" type="bool" default="false">
+  Whether the repository is private.
+</ParamField>
+
+<ParamField path="autoupdate_token" type="string">
+  Read-only token used by the updater to access private repositories from installed apps.
+</ParamField>
+
+<ParamField path="channel" type="string" default="latest">
+  The release channel to use (e.g., 'latest', 'beta').
+</ParamField>
+
+<ParamField path="releaseType" type="string" default="draft">
+  The type of release to publish: 'draft' or 'release'.
+</ParamField>
+
+### S3 Provider
+
+Use AWS S3 or S3-compatible services (like Cloudflare R2):
+
+```php
+'s3' => [
+    'driver' => 's3',
+    'key' => env('AWS_ACCESS_KEY_ID'),
+    'secret' => env('AWS_SECRET_ACCESS_KEY'),
+    'region' => env('AWS_DEFAULT_REGION'),
+    'bucket' => env('AWS_BUCKET'),
+    'endpoint' => env('AWS_ENDPOINT'),
+    'path' => env('NATIVEPHP_UPDATER_PATH', null),
+    'public_url' => env('AWS_PUBLIC_URL'),
+],
+```
+
+<ParamField path="key" type="string" required>
+  AWS access key ID.
+</ParamField>
+
+<ParamField path="secret" type="string" required>
+  AWS secret access key.
+</ParamField>
+
+<ParamField path="region" type="string" required>
+  AWS region (e.g., 'us-east-1').
+</ParamField>
+
+<ParamField path="bucket" type="string" required>
+  S3 bucket name.
+</ParamField>
+
+<ParamField path="endpoint" type="string">
+  Custom S3 endpoint URL (for S3-compatible services).
+</ParamField>
+
+<ParamField path="path" type="string">
+  Optional path prefix within the bucket.
+</ParamField>
+
+<ParamField path="public_url" type="string">
+  Optional public URL for serving updates (e.g., CDN or custom domain). When set, updates are downloaded from this URL instead of the S3 endpoint.
+</ParamField>
+
+### Spaces Provider
+
+Use DigitalOcean Spaces:
+
+```php
+'spaces' => [
+    'driver' => 'spaces',
+    'key' => env('DO_SPACES_KEY_ID'),
+    'secret' => env('DO_SPACES_SECRET_ACCESS_KEY'),
+    'name' => env('DO_SPACES_NAME'),
+    'region' => env('DO_SPACES_REGION'),
+    'path' => env('NATIVEPHP_UPDATER_PATH', null),
+],
+```
+
+<ParamField path="key" type="string" required>
+  DigitalOcean Spaces access key.
+</ParamField>
+
+<ParamField path="secret" type="string" required>
+  DigitalOcean Spaces secret key.
+</ParamField>
+
+<ParamField path="name" type="string" required>
+  Spaces name.
+</ParamField>
+
+<ParamField path="region" type="string" required>
+  Spaces region (e.g., 'nyc3').
+</ParamField>
+
+<ParamField path="path" type="string">
+  Optional path prefix within the Space.
+</ParamField>
+
+## Complete Example
+
+```php
+use Native\Desktop\Facades\AutoUpdater;
+use Native\Desktop\Events\Updates\UpdateAvailable;
+use Native\Desktop\Events\Updates\UpdateDownloaded;
+use Illuminate\Support\Facades\Event;
+
+// Check for updates on app startup
+AutoUpdater::checkForUpdates();
+
+// Listen for update available
+Event::listen(UpdateAvailable::class, function ($event) {
+    // Show notification to user
+    Notification::make()
+        ->title('Update Available')
+        ->message('A new version is available. Would you like to download it?')
+        ->show();
+    
+    // Start downloading
+    AutoUpdater::downloadUpdate();
+});
+
+// Listen for download complete
+Event::listen(UpdateDownloaded::class, function () {
+    // Ask user if they want to install now
+    Notification::make()
+        ->title('Update Ready')
+        ->message('Update downloaded. Click to install and restart.')
+        ->show();
+    
+    // When user clicks, call:
+    // AutoUpdater::quitAndInstall();
+});
+```

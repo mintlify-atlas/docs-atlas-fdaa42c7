@@ -1,0 +1,460 @@
+---
+title: Menu System
+description: Creating and managing application menus and menu bars in NativePHP Desktop
+---
+
+NativePHP Desktop provides a comprehensive menu system for creating native application menus. The menu API supports standard menu items, submenus, keyboard shortcuts, and platform-specific menu roles.
+
+## Menu Builder
+
+The `MenuBuilder` class provides a fluent API for creating menus:
+
+```php
+use Native\Desktop\Facades\Menu;
+
+Menu::create(
+    Menu::app(),
+    Menu::file(),
+    Menu::edit(),
+    Menu::view(),
+    Menu::window()
+);
+```
+
+## Creating Menus
+
+Menus are created using the `Menu` class and registered with the native runtime:
+
+<Steps>
+  <Step title="Create a Menu">
+    ```php
+    $menu = Menu::make(
+        Menu::label('File')->submenu(
+            Menu::link(route('new'), 'New File', 'CmdOrCtrl+N'),
+            Menu::separator(),
+            Menu::quit()
+        )
+    );
+    ```
+  </Step>
+  
+  <Step title="Register the Menu">
+    ```php
+    $menu->register();
+    ```
+    
+    Or use `create()` to make and register in one call:
+    ```php
+    Menu::create(
+        Menu::label('File'),
+        Menu::label('Edit')
+    );
+    ```
+  </Step>
+</Steps>
+
+## Menu Structure
+
+The `Menu` class implements a hierarchical structure:
+
+```php
+class Menu implements JsonSerializable, MenuItem
+{
+    protected array $items = [];
+    protected string $label = '';
+
+    public function label(string $label): self
+    {
+        $this->label = $label;
+        return $this;
+    }
+
+    public function add(MenuItem $item): self
+    {
+        $this->items[] = $item;
+        return $this;
+    }
+
+    public function register(): void
+    {
+        $items = $this->toArray()['submenu'];
+
+        $this->client->post('menu', [
+            'items' => $items,
+        ]);
+    }
+}
+```
+
+## Menu Item Types
+
+NativePHP supports several menu item types:
+
+### Labels (Clickable Items)
+
+```php
+Menu::label('Preferences', 'CmdOrCtrl+,')
+    ->submenu(
+        Menu::label('General'),
+        Menu::label('Advanced')
+    );
+```
+
+### Links
+
+Links navigate to URLs within your application:
+
+<Tabs>
+  <Tab title="URL Links">
+    ```php
+    Menu::link('/dashboard', 'Dashboard', 'CmdOrCtrl+D');
+    
+    // Open in external browser
+    Menu::link('https://example.com', 'Website')
+        ->openInBrowser();
+    ```
+  </Tab>
+  <Tab title="Route Links">
+    ```php
+    Menu::route('dashboard', 'Dashboard', 'CmdOrCtrl+D');
+    Menu::route('settings.index', 'Settings', 'CmdOrCtrl+,');
+    ```
+  </Tab>
+</Tabs>
+
+The `Link` class implementation:
+```php
+class Link extends MenuItem
+{
+    protected string $type = 'link';
+    protected bool $openInBrowser = false;
+
+    public function __construct(
+        protected string $url,
+        protected ?string $label,
+        protected ?string $accelerator = null
+    ) {}
+
+    public function openInBrowser(bool $openInBrowser = true): self
+    {
+        $this->openInBrowser = $openInBrowser;
+        return $this;
+    }
+
+    public function toArray(): array
+    {
+        return array_merge(parent::toArray(), [
+            'url' => $this->url,
+            'openInBrowser' => $this->openInBrowser,
+        ]);
+    }
+}
+```
+
+### Separators
+
+Visual separators between menu items:
+
+```php
+Menu::create(
+    Menu::label('File')->submenu(
+        Menu::label('New'),
+        Menu::label('Open'),
+        Menu::separator(),  // Visual divider
+        Menu::label('Save'),
+        Menu::separator(),
+        Menu::quit()
+    )
+);
+```
+
+### Checkboxes
+
+Toggleable menu items:
+
+```php
+Menu::checkbox('Dark Mode', checked: true, hotkey: 'CmdOrCtrl+Shift+D');
+Menu::checkbox('Show Sidebar', checked: false, hotkey: 'CmdOrCtrl+B');
+```
+
+### Radio Buttons
+
+Mutually exclusive options:
+
+```php
+Menu::label('View')->submenu(
+    Menu::radio('List View', checked: true),
+    Menu::radio('Grid View', checked: false),
+    Menu::radio('Column View', checked: false)
+);
+```
+
+## Menu Roles
+
+NativePHP provides platform-aware menu roles that automatically handle standard functionality:
+
+### Application Menu
+
+```php
+Menu::app()  // Creates standard app menu (macOS)
+```
+
+### File Menu
+
+```php
+Menu::file('File')->submenu(
+    Menu::label('New', 'CmdOrCtrl+N'),
+    Menu::label('Open', 'CmdOrCtrl+O'),
+    Menu::separator(),
+    Menu::close('Close Window')
+);
+```
+
+### Edit Menu
+
+```php
+Menu::edit('Edit')->submenu(
+    Menu::undo(),
+    Menu::redo(),
+    Menu::separator(),
+    Menu::cut(),
+    Menu::copy(),
+    Menu::paste(),
+    Menu::pasteAndMatchStyle()
+);
+```
+
+### View Menu
+
+```php
+Menu::view('View')->submenu(
+    Menu::reload('Reload'),
+    Menu::fullscreen('Toggle Fullscreen'),
+    Menu::devTools('Developer Tools')
+);
+```
+
+### Window Menu
+
+```php
+Menu::window('Window')->submenu(
+    Menu::minimize('Minimize'),
+    Menu::close('Close')
+);
+```
+
+<Note>
+  Menu roles automatically adapt to platform conventions. For example, `Menu::app()` creates a standard application menu on macOS with About, Preferences, Services, and Quit items.
+</Note>
+
+## Common Menu Roles
+
+The `MenuBuilder` provides shortcut methods for common actions:
+
+<Accordion title="All Available Roles">
+  ```php
+  // Application
+  Menu::quit('Quit App');
+  Menu::about('About');
+  Menu::hide('Hide App');
+  Menu::help('Help');
+
+  // File operations
+  Menu::close('Close');
+
+  // Edit operations
+  Menu::undo('Undo');
+  Menu::redo('Redo');
+  Menu::cut('Cut');
+  Menu::copy('Copy');
+  Menu::paste('Paste');
+  Menu::pasteAndMatchStyle('Paste and Match Style');
+
+  // View operations
+  Menu::reload('Reload');
+  Menu::fullscreen('Toggle Fullscreen');
+  Menu::devTools('Toggle Developer Tools');
+
+  // Window operations
+  Menu::minimize('Minimize');
+  ```
+</Accordion>
+
+## Keyboard Shortcuts
+
+All menu items support keyboard shortcuts (accelerators):
+
+```php
+Menu::label('Save', 'CmdOrCtrl+S');
+Menu::label('Save As', 'CmdOrCtrl+Shift+S');
+Menu::label('Preferences', 'CmdOrCtrl+,');
+```
+
+### Platform-Aware Shortcuts
+
+- `CmdOrCtrl` - Command on macOS, Control on Windows/Linux
+- `Cmd` - Command (macOS only)
+- `Ctrl` - Control
+- `Alt` - Alt/Option
+- `Shift` - Shift
+
+### Modifier Combinations
+
+```php
+Menu::label('Find', 'CmdOrCtrl+F');
+Menu::label('Find Next', 'CmdOrCtrl+G');
+Menu::label('Find Previous', 'CmdOrCtrl+Shift+G');
+Menu::label('Zoom In', 'CmdOrCtrl+Plus');
+Menu::label('Zoom Out', 'CmdOrCtrl+-');
+```
+
+## Default Menu
+
+Create a standard application menu with default items:
+
+```php
+Menu::default();
+```
+
+This creates:
+```php
+public function default(): void
+{
+    $this->create(
+        $this->app(),
+        $this->file(),
+        $this->edit(),
+        $this->view(),
+        $this->window(),
+    );
+}
+```
+
+## Handling Menu Events
+
+Menu items dispatch events when clicked:
+
+```php
+use Native\Desktop\Events\Menu\MenuItemClicked;
+
+class MenuItemClicked implements ShouldBroadcastNow
+{
+    use Dispatchable, InteractsWithSockets, SerializesModels;
+
+    public function __construct(
+        public array $item,
+        public array $combo = []
+    ) {}
+
+    public function broadcastOn()
+    {
+        return [new Channel('nativephp')];
+    }
+}
+```
+
+Listen for menu clicks in your event listener:
+
+```php
+use Native\Desktop\Events\Menu\MenuItemClicked;
+
+Event::listen(MenuItemClicked::class, function ($event) {
+    $itemLabel = $event->item['label'];
+    $hotkey = $event->combo;
+    
+    // Handle menu click
+});
+```
+
+## Submenus
+
+Create nested menu structures:
+
+```php
+Menu::create(
+    Menu::label('File')->submenu(
+        Menu::label('New')->submenu(
+            Menu::label('Text File'),
+            Menu::label('Folder'),
+            Menu::separator(),
+            Menu::label('Project')
+        ),
+        Menu::label('Open'),
+        Menu::separator(),
+        Menu::quit()
+    )
+);
+```
+
+## Dynamic Menus
+
+Update menus based on application state:
+
+```php
+$recentFiles = RecentFile::limit(5)->get();
+
+$recentItems = $recentFiles->map(fn($file) => 
+    Menu::link($file->path, $file->name)
+);
+
+Menu::create(
+    Menu::label('File')->submenu(
+        Menu::label('Open Recent')->submenu(...$recentItems),
+        Menu::separator(),
+        Menu::quit()
+    )
+);
+```
+
+## Complete Example
+
+Here's a complete menu setup for a text editor application:
+
+```php
+use Native\Desktop\Facades\Menu;
+
+Menu::create(
+    // Application menu (macOS)
+    Menu::app(),
+    
+    // File menu
+    Menu::label('File')->submenu(
+        Menu::route('files.create', 'New File', 'CmdOrCtrl+N'),
+        Menu::route('files.open', 'Open...', 'CmdOrCtrl+O'),
+        Menu::separator(),
+        Menu::route('files.save', 'Save', 'CmdOrCtrl+S'),
+        Menu::route('files.save-as', 'Save As...', 'CmdOrCtrl+Shift+S'),
+        Menu::separator(),
+        Menu::close('Close Window')
+    ),
+    
+    // Edit menu
+    Menu::edit('Edit')->submenu(
+        Menu::undo(),
+        Menu::redo(),
+        Menu::separator(),
+        Menu::cut(),
+        Menu::copy(),
+        Menu::paste()
+    ),
+    
+    // View menu
+    Menu::view('View')->submenu(
+        Menu::checkbox('Show Sidebar', true, 'CmdOrCtrl+B'),
+        Menu::checkbox('Word Wrap', false),
+        Menu::separator(),
+        Menu::fullscreen(),
+        Menu::devTools()
+    ),
+    
+    // Window menu
+    Menu::window('Window')->submenu(
+        Menu::minimize(),
+        Menu::label('Zoom')
+    )
+);
+```
+
+<Warning>
+  Menus are registered globally. Calling `register()` or `create()` will replace the existing menu structure.
+</Warning>

@@ -1,0 +1,187 @@
+---
+title: Shell
+description: Perform file and URL operations using the system shell
+---
+
+The Shell API provides methods to interact with the operating system's shell, allowing you to show files in the file manager, open files with default applications, move files to trash, and open external URLs.
+
+## Usage
+
+```php
+use Native\Desktop\Facades\Shell;
+
+// Show a file in the system file manager
+Shell::showInFolder('/path/to/file.txt');
+
+// Open a file with the default application
+Shell::openFile('/path/to/document.pdf');
+
+// Move a file to trash
+Shell::trashFile('/path/to/old-file.txt');
+
+// Open a URL in the default browser
+Shell::openExternal('https://example.com');
+```
+
+## Methods
+
+### showInFolder()
+
+Show a file or folder in the system's file manager (Explorer on Windows, Finder on macOS, file manager on Linux).
+
+```php
+Shell::showInFolder(string $path): void
+```
+
+<ParamField path="path" type="string" required>
+  The absolute path to the file or folder to show.
+</ParamField>
+
+**Example:**
+
+```php
+Shell::showInFolder(storage_path('logs/laravel.log'));
+```
+
+### openFile()
+
+Open a file using the system's default application for that file type.
+
+```php
+Shell::openFile(string $path): string
+```
+
+<ParamField path="path" type="string" required>
+  The absolute path to the file to open.
+</ParamField>
+
+<ResponseField name="return" type="string">
+  Returns an empty string if successful, or an error message if the file couldn't be opened.
+</ResponseField>
+
+**Example:**
+
+```php
+$result = Shell::openFile(storage_path('reports/monthly.pdf'));
+
+if ($result !== '') {
+    // Handle error
+    logger()->error('Failed to open file: ' . $result);
+}
+```
+
+### trashFile()
+
+Move a file to the system's trash/recycle bin instead of permanently deleting it.
+
+```php
+Shell::trashFile(string $path): void
+```
+
+<ParamField path="path" type="string" required>
+  The absolute path to the file to move to trash.
+</ParamField>
+
+**Example:**
+
+```php
+Shell::trashFile(storage_path('temp/cache.tmp'));
+```
+
+### openExternal()
+
+Open a URL in the system's default web browser or appropriate external application.
+
+```php
+Shell::openExternal(string $url): void
+```
+
+<ParamField path="url" type="string" required>
+  The URL to open. Can be a web URL (http/https) or other protocol URLs like `mailto:` or `file:`.
+</ParamField>
+
+**Example:**
+
+```php
+// Open a website
+Shell::openExternal('https://nativephp.com');
+
+// Open an email client
+Shell::openExternal('mailto:support@example.com');
+
+// Open a file URL
+Shell::openExternal('file:///path/to/file.html');
+```
+
+## Complete Examples
+
+### Export and Show Report
+
+```php
+use Native\Desktop\Facades\Shell;
+
+class ReportController
+{
+    public function export()
+    {
+        $path = storage_path('exports/report.pdf');
+        
+        // Generate report
+        PDF::generateReport($path);
+        
+        // Show the file in the file manager
+        Shell::showInFolder($path);
+        
+        return response()->json(['message' => 'Report exported']);
+    }
+}
+```
+
+### Safe File Deletion
+
+```php
+use Native\Desktop\Facades\Shell;
+
+class FileManager
+{
+    public function delete(string $filePath)
+    {
+        try {
+            // Move to trash instead of permanent deletion
+            Shell::trashFile($filePath);
+            
+            return ['success' => true, 'message' => 'File moved to trash'];
+        } catch (\Exception $e) {
+            return ['success' => false, 'message' => 'Failed to delete file'];
+        }
+    }
+}
+```
+
+### Open Documentation
+
+```php
+use Native\Desktop\Facades\Shell;
+
+class HelpController
+{
+    public function openDocs()
+    {
+        Shell::openExternal('https://docs.example.com');
+    }
+    
+    public function openLocalHelp()
+    {
+        $helpFile = resource_path('help/index.html');
+        Shell::openFile($helpFile);
+    }
+}
+```
+
+## Notes
+
+- All file paths should be absolute paths
+- The `openFile()` method uses the system's file associations to determine which application to use
+- `trashFile()` is safer than permanent deletion as files can be recovered from the trash
+- `openExternal()` will open URLs in the default browser, not within your application
+- These methods respect the operating system's security settings and file permissions

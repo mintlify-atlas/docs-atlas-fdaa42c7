@@ -1,0 +1,350 @@
+---
+title: Dialog
+description: Display native file and folder selection dialogs in NativePHP Desktop
+---
+
+The Dialog API allows you to display native file and folder selection dialogs, with support for filters, multiple selections, and save dialogs.
+
+## Basic Usage
+
+```php
+use Native\Desktop\Dialog;
+
+// Open file dialog
+$filePath = Dialog::new()
+    ->title('Select a file')
+    ->open();
+
+// Save file dialog
+$savePath = Dialog::new()
+    ->title('Save file as')
+    ->save();
+```
+
+## Creating Dialogs
+
+### new
+
+Create a new dialog instance.
+
+<ResponseField name="return" type="Dialog">
+  Returns a new Dialog instance
+</ResponseField>
+
+```php
+$dialog = Dialog::new();
+```
+
+## Configuration Methods
+
+### title
+
+Set the dialog window title.
+
+<ParamField path="title" type="string" required>
+  The title text for the dialog window
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+$dialog->title('Select a configuration file');
+```
+
+### defaultPath
+
+Set the default path where the dialog opens.
+
+<ParamField path="defaultPath" type="string" required>
+  The default directory or file path
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+$dialog->defaultPath(storage_path('exports'));
+```
+
+### button
+
+Set the label for the dialog's action button.
+
+<ParamField path="buttonLabel" type="string" required>
+  The text for the button (default is "Select")
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+$dialog->button('Choose File');
+```
+
+### files
+
+Configure the dialog to select files.
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+$dialog->files();
+```
+
+### folders
+
+Configure the dialog to select folders/directories.
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+$dialog->folders();
+```
+
+### multiple
+
+Allow selection of multiple files or folders.
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+$dialog->multiple();
+```
+
+### withHiddenFiles
+
+Show hidden files in the dialog.
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+$dialog->withHiddenFiles();
+```
+
+### dontResolveSymlinks
+
+Prevent the dialog from resolving symbolic links.
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+$dialog->dontResolveSymlinks();
+```
+
+### filter
+
+Add a file type filter to the dialog.
+
+<ParamField path="name" type="string" required>
+  The display name for the filter (e.g., "Images")
+</ParamField>
+
+<ParamField path="extensions" type="array" required>
+  Array of file extensions without dots (e.g., ["jpg", "png"])
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+$dialog->filter('Images', ['jpg', 'jpeg', 'png', 'gif']);
+```
+
+### properties
+
+Set custom dialog properties directly.
+
+<ParamField path="properties" type="array" required>
+  Array of property strings (e.g., ["openFile", "multiSelections"])
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+$dialog->properties(['openFile', 'multiSelections']);
+```
+
+**Available Properties:**
+- `openFile` - Allow file selection
+- `openDirectory` - Allow directory selection
+- `multiSelections` - Allow multiple selections
+- `showHiddenFiles` - Show hidden files
+- `noResolveAliases` - Don't resolve symbolic links
+
+### asSheet
+
+Display the dialog as a sheet attached to a window (macOS only).
+
+<ParamField path="windowId" type="string|null">
+  The window ID to attach to (defaults to current window)
+</ParamField>
+
+<ResponseField name="return" type="self">
+  Returns the Dialog instance for method chaining
+</ResponseField>
+
+```php
+// Attach to current window
+$dialog->asSheet();
+
+// Attach to specific window
+$dialog->asSheet('main-window');
+```
+
+## Dialog Actions
+
+### open
+
+Open the dialog and return the selected path(s).
+
+<ResponseField name="return" type="string|array|null">
+  Returns the selected path (string) for single selection, array of paths for multiple selection, or null if cancelled
+</ResponseField>
+
+```php
+// Single file selection
+$file = Dialog::new()->open();
+
+// Multiple file selection
+$files = Dialog::new()->multiple()->open();
+```
+
+### save
+
+Open a save dialog and return the selected path.
+
+<ResponseField name="return" type="string|null">
+  Returns the selected save path or null if cancelled
+</ResponseField>
+
+```php
+$savePath = Dialog::new()
+    ->title('Save export as')
+    ->defaultPath(storage_path('exports/data.csv'))
+    ->save();
+```
+
+## Examples
+
+### Select a Single File
+
+```php
+use Native\Desktop\Dialog;
+
+$filePath = Dialog::new()
+    ->title('Select a PDF file')
+    ->filter('PDF Files', ['pdf'])
+    ->open();
+
+if ($filePath) {
+    // Process the file
+}
+```
+
+### Select Multiple Images
+
+```php
+use Native\Desktop\Dialog;
+
+$images = Dialog::new()
+    ->title('Select images to import')
+    ->filter('Images', ['jpg', 'jpeg', 'png', 'gif', 'webp'])
+    ->multiple()
+    ->open();
+
+foreach ($images as $image) {
+    // Process each image
+}
+```
+
+### Select a Folder
+
+```php
+use Native\Desktop\Dialog;
+
+$folder = Dialog::new()
+    ->title('Choose project directory')
+    ->folders()
+    ->open();
+```
+
+### Save File Dialog
+
+```php
+use Native\Desktop\Dialog;
+
+$savePath = Dialog::new()
+    ->title('Export data')
+    ->button('Export')
+    ->defaultPath(storage_path('exports/data.csv'))
+    ->filter('CSV Files', ['csv'])
+    ->save();
+
+if ($savePath) {
+    file_put_contents($savePath, $csvData);
+}
+```
+
+### Multiple File Types Filter
+
+```php
+use Native\Desktop\Dialog;
+
+$file = Dialog::new()
+    ->title('Select a document')
+    ->filter('Documents', ['pdf', 'doc', 'docx'])
+    ->filter('Spreadsheets', ['xls', 'xlsx', 'csv'])
+    ->filter('All Files', ['*'])
+    ->open();
+```
+
+### Dialog as Sheet (macOS)
+
+```php
+use Native\Desktop\Dialog;
+use Native\Desktop\Facades\Window;
+
+$file = Dialog::new()
+    ->title('Open file')
+    ->asSheet()
+    ->open();
+```
+
+### Advanced Configuration
+
+```php
+use Native\Desktop\Dialog;
+
+$files = Dialog::new()
+    ->title('Import configuration files')
+    ->defaultPath(config_path())
+    ->button('Import')
+    ->filter('JSON Files', ['json'])
+    ->filter('YAML Files', ['yml', 'yaml'])
+    ->multiple()
+    ->withHiddenFiles()
+    ->open();
+
+if (!empty($files)) {
+    foreach ($files as $file) {
+        // Import each configuration file
+    }
+}
+```

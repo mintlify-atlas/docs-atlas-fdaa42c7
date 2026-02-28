@@ -1,0 +1,293 @@
+---
+title: ChildProcess
+description: API reference for managing child processes in NativePHP Desktop applications
+---
+
+The `ChildProcess` class allows you to spawn and manage child processes from your NativePHP application. You can run system commands, PHP scripts, Node.js scripts, and Artisan commands as separate processes.
+
+## Available Methods
+
+### start()
+
+Start a new child process with a custom command.
+
+<ParamField path="cmd" type="string|array" required>
+  The command to execute. Can be a string or an array of command arguments.
+</ParamField>
+
+<ParamField path="alias" type="string" required>
+  A unique identifier for this process. Used to reference the process later.
+</ParamField>
+
+<ParamField path="cwd" type="string|null" default="base_path()">
+  The working directory for the process. Defaults to your application's base path.
+</ParamField>
+
+<ParamField path="env" type="array|null">
+  Environment variables to pass to the process.
+</ParamField>
+
+<ParamField path="persistent" type="bool" default="false">
+  Whether the process should restart automatically if it exits.
+</ParamField>
+
+<ResponseField name="return" type="ChildProcess">
+  Returns the ChildProcess instance with populated properties.
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+$process = ChildProcess::start(
+    cmd: 'npm run dev',
+    alias: 'vite',
+    persistent: true
+);
+```
+
+### php()
+
+Start a PHP script as a child process.
+
+<ParamField path="cmd" type="string|array" required>
+  The PHP script or command to execute.
+</ParamField>
+
+<ParamField path="alias" type="string" required>
+  A unique identifier for this process.
+</ParamField>
+
+<ParamField path="env" type="array|null">
+  Environment variables to pass to the PHP process.
+</ParamField>
+
+<ParamField path="persistent" type="bool" default="false">
+  Whether the process should restart automatically if it exits.
+</ParamField>
+
+<ParamField path="iniSettings" type="array|null">
+  PHP ini settings to apply to the process (e.g., `['memory_limit' => '256M']`).
+</ParamField>
+
+<ResponseField name="return" type="ChildProcess">
+  Returns the ChildProcess instance.
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+$process = ChildProcess::php(
+    cmd: 'script.php',
+    alias: 'background-task',
+    iniSettings: ['memory_limit' => '512M']
+);
+```
+
+### node()
+
+Start a Node.js script as a child process.
+
+<ParamField path="cmd" type="string|array" required>
+  The Node.js script or command to execute.
+</ParamField>
+
+<ParamField path="alias" type="string" required>
+  A unique identifier for this process.
+</ParamField>
+
+<ParamField path="env" type="array|null">
+  Environment variables to pass to the Node.js process.
+</ParamField>
+
+<ParamField path="persistent" type="bool" default="false">
+  Whether the process should restart automatically if it exits.
+</ParamField>
+
+<ResponseField name="return" type="ChildProcess">
+  Returns the ChildProcess instance.
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+$process = ChildProcess::node(
+    cmd: 'server.js',
+    alias: 'node-server',
+    persistent: true
+);
+```
+
+### artisan()
+
+Run an Artisan command as a child process.
+
+<ParamField path="cmd" type="string|array" required>
+  The Artisan command to execute (without the 'artisan' prefix).
+</ParamField>
+
+<ParamField path="alias" type="string" required>
+  A unique identifier for this process.
+</ParamField>
+
+<ParamField path="env" type="array|null">
+  Environment variables to pass to the Artisan command.
+</ParamField>
+
+<ParamField path="persistent" type="bool" default="false">
+  Whether the process should restart automatically if it exits.
+</ParamField>
+
+<ParamField path="iniSettings" type="array|null">
+  PHP ini settings to apply to the process.
+</ParamField>
+
+<ResponseField name="return" type="ChildProcess">
+  Returns the ChildProcess instance.
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+$process = ChildProcess::artisan(
+    cmd: 'schedule:work',
+    alias: 'scheduler',
+    persistent: true
+);
+```
+
+### get()
+
+Retrieve information about a running process by its alias.
+
+<ParamField path="alias" type="string|null">
+  The alias of the process to retrieve. If called on an instance, defaults to that instance's alias.
+</ParamField>
+
+<ResponseField name="return" type="ChildProcess|null">
+  Returns the ChildProcess instance if found, or null if not found.
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+$process = ChildProcess::get('vite');
+
+if ($process) {
+    echo "Process ID: {$process->pid}";
+}
+```
+
+### all()
+
+Retrieve all running child processes.
+
+<ResponseField name="return" type="array">
+  Returns an associative array of ChildProcess instances, keyed by their aliases.
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+$processes = ChildProcess::all();
+
+foreach ($processes as $alias => $process) {
+    echo "{$alias}: PID {$process->pid}\n";
+}
+```
+
+### stop()
+
+Stop a running child process.
+
+<ParamField path="alias" type="string|null">
+  The alias of the process to stop. If called on an instance, defaults to that instance's alias.
+</ParamField>
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+ChildProcess::stop('vite');
+```
+
+### restart()
+
+Restart a running child process.
+
+<ParamField path="alias" type="string|null">
+  The alias of the process to restart. If called on an instance, defaults to that instance's alias.
+</ParamField>
+
+<ResponseField name="return" type="ChildProcess|null">
+  Returns the restarted ChildProcess instance, or null if the process could not be restarted.
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+$process = ChildProcess::restart('vite');
+```
+
+### message()
+
+Send a message to a running child process.
+
+<ParamField path="message" type="string" required>
+  The message to send to the process.
+</ParamField>
+
+<ParamField path="alias" type="string|null">
+  The alias of the process to send the message to. If called on an instance, defaults to that instance's alias.
+</ParamField>
+
+<ResponseField name="return" type="ChildProcess">
+  Returns the ChildProcess instance for method chaining.
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+ChildProcess::message('reload', 'vite');
+```
+
+## Properties
+
+The `ChildProcess` class exposes the following readonly properties:
+
+<ResponseField name="pid" type="int">
+  The process ID of the child process.
+</ResponseField>
+
+<ResponseField name="alias" type="string">
+  The unique identifier for this process.
+</ResponseField>
+
+<ResponseField name="cmd" type="array">
+  The command that was executed, as an array.
+</ResponseField>
+
+<ResponseField name="cwd" type="string|null">
+  The working directory of the process.
+</ResponseField>
+
+<ResponseField name="env" type="array|null">
+  The environment variables passed to the process.
+</ResponseField>
+
+<ResponseField name="persistent" type="bool">
+  Whether the process is set to restart automatically.
+</ResponseField>
+
+<ResponseField name="iniSettings" type="array|null">
+  PHP ini settings applied to the process (PHP processes only).
+</ResponseField>
+
+```php
+use Native\Desktop\Facades\ChildProcess;
+
+$process = ChildProcess::get('vite');
+
+echo "PID: {$process->pid}\n";
+echo "Alias: {$process->alias}\n";
+echo "Command: " . implode(' ', $process->cmd) . "\n";
+echo "Persistent: " . ($process->persistent ? 'Yes' : 'No') . "\n";
+```

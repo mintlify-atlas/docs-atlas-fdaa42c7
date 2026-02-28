@@ -1,0 +1,180 @@
+---
+title: Queue Workers
+description: Learn how to configure and manage queue workers in your NativePHP Desktop application
+---
+
+NativePHP Desktop automatically manages queue workers for your application, allowing you to process background jobs efficiently. Queue workers are automatically started when your application boots and can be configured to handle different queues with specific settings.
+
+## Default Configuration
+
+Queue workers are configured in your `config/nativephp.php` file. By default, NativePHP starts a single queue worker that processes the `default` queue:
+
+```php config/nativephp.php
+'queue_workers' => [
+    'default' => [
+        'queues' => ['default'],
+        'memory_limit' => 128,
+        'timeout' => 60,
+        'sleep' => 3,
+    ],
+],
+```
+
+<Note>
+  NativePHP automatically sets the default queue connection to `database` and uses the SQLite database for queue storage.
+</Note>
+
+## Configuration Options
+
+Each queue worker accepts the following configuration options:
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `queues` | `array` | Array of queue names to process (e.g., `['default', 'emails', 'notifications']`) |
+| `memory_limit` | `int` | Maximum memory in MB the worker can use (default: `128`) |
+| `timeout` | `int` | Maximum seconds a job can run before timing out (default: `60`) |
+| `sleep` | `int\|float` | Seconds to sleep when no jobs are available (default: `3`) |
+
+## Multiple Queue Workers
+
+You can configure multiple queue workers to handle different queues or priorities:
+
+```php config/nativephp.php
+'queue_workers' => [
+    'default' => [
+        'queues' => ['default'],
+        'memory_limit' => 128,
+        'timeout' => 60,
+        'sleep' => 3,
+    ],
+    'high-priority' => [
+        'queues' => ['emails', 'notifications'],
+        'memory_limit' => 256,
+        'timeout' => 120,
+        'sleep' => 1,
+    ],
+    'long-running' => [
+        'queues' => ['exports', 'reports'],
+        'memory_limit' => 512,
+        'timeout' => 300,
+        'sleep' => 5,
+    ],
+],
+```
+
+<Warning>
+  Each queue worker runs as a separate PHP process. Be mindful of memory usage when configuring multiple workers.
+</Warning>
+
+## Programmatic Control
+
+You can start and stop queue workers programmatically using the `QueueWorker` contract:
+
+### Starting a Worker
+
+```php
+use Native\Desktop\Contracts\QueueWorker;
+use Native\Desktop\DataObjects\QueueConfig;
+
+class NativeAppServiceProvider extends ServiceProvider
+{
+    public function boot(QueueWorker $queueWorker)
+    {
+        // Start a worker using config alias
+        $queueWorker->up('default');
+        
+        // Or create a custom config
+        $config = new QueueConfig(
+            alias: 'custom-worker',
+            queuesToConsume: ['custom', 'tasks'],
+            memoryLimit: 256,
+            timeout: 120,
+            sleep: 2
+        );
+        
+        $queueWorker->up($config);
+    }
+}
+```
+
+### Stopping a Worker
+
+```php
+use Native\Desktop\Contracts\QueueWorker;
+
+public function stopWorker(QueueWorker $queueWorker)
+{
+    // Stop a worker by its alias
+    $queueWorker->down('default');
+}
+```
+
+## How It Works
+
+<Accordion title="Understanding Queue Worker Behavior">
+  When your NativePHP application starts:
+  
+  1. **Development Mode**: Workers use `queue:listen` command, which automatically reloads when code changes
+  2. **Production Mode**: Workers use `queue:work` command for better performance
+  3. **Process Management**: Each worker runs as a persistent child process with its own memory limit
+  4. **Auto-Recovery**: If a worker crashes, it will be restarted automatically
+  
+  Workers are configured to use the NativePHP SQLite database connection and run with the `--quiet` flag to minimize output.
+</Accordion>
+
+## Dispatching Jobs
+
+Dispatch jobs as you normally would in Laravel:
+
+```php
+use App\Jobs\ProcessData;
+
+// Dispatch to default queue
+ProcessData::dispatch($data);
+
+// Dispatch to specific queue
+ProcessData::dispatch($data)->onQueue('high-priority');
+
+// Dispatch with delay
+ProcessData::dispatch($data)
+    ->onQueue('emails')
+    ->delay(now()->addMinutes(5));
+```
+
+## Best Practices
+
+<Note>
+  - **Memory Limits**: Set appropriate memory limits based on your job requirements
+  - **Timeout Values**: Ensure timeouts are longer than your longest-running job
+  - **Sleep Duration**: Lower sleep values increase responsiveness but use more CPU
+  - **Queue Separation**: Use separate queues for different job priorities or types
+</Note>
+
+## Troubleshooting
+
+### Jobs Not Processing
+
+If jobs aren't being processed:
+
+1. Check that your queue connection is set to `database`
+2. Verify the queue worker is running for the correct queue name
+3. Check the `failed_jobs` table for any failed jobs
+4. Review application logs for errors
+
+### High Memory Usage
+
+If workers are using too much memory:
+
+1. Lower the `memory_limit` configuration
+2. Reduce the number of concurrent workers
+3. Optimize your job code to use less memory
+4. Consider breaking large jobs into smaller chunks
+
+### Worker Crashes
+
+If workers keep crashing:
+
+1. Check application logs for error messages
+2. Increase the `timeout` value if jobs are timing out
+3. Increase the `memory_limit` if workers are running out of memory
+4. Review your job code for memory leaks or infinite loops

@@ -1,0 +1,334 @@
+---
+title: Auto-Updater
+description: Keep your desktop application up-to-date with automatic updates
+---
+
+NativePHP Desktop includes built-in auto-update functionality to keep your applications current with the latest features and bug fixes.
+
+## Checking for Updates
+
+Manually check if updates are available:
+
+```php
+use Native\Desktop\Facades\AutoUpdater;
+
+AutoUpdater::checkForUpdates();
+```
+
+This will check the configured update server for new versions of your application.
+
+## Downloading Updates
+
+Once an update is found, download it:
+
+```php
+AutoUpdater::downloadUpdate();
+```
+
+<Note>
+The update will be downloaded in the background. Listen for update events to track the download progress.
+</Note>
+
+## Installing Updates
+
+After downloading, quit the application and install the update:
+
+```php
+AutoUpdater::quitAndInstall();
+```
+
+This will:
+1. Close your application
+2. Install the downloaded update
+3. Restart the application with the new version
+
+<Warning>
+Calling `quitAndInstall()` will immediately quit your application. Make sure to save any unsaved work before calling this method.
+</Warning>
+
+## Handling Update Events
+
+Listen for update-related events to provide feedback to users:
+
+```php
+use Native\Desktop\Events\AutoUpdater\UpdateAvailable;
+use Native\Desktop\Events\AutoUpdater\UpdateDownloaded;
+use Native\Desktop\Events\AutoUpdater\UpdateNotAvailable;
+
+// Update is available
+Event::listen(function (UpdateAvailable $event) {
+    Notification::new()
+        ->title('Update Available')
+        ->message("Version {$event->version} is available.")
+        ->addAction('Download')
+        ->event('update.download')
+        ->show();
+});
+
+// Update has been downloaded
+Event::listen(function (UpdateDownloaded $event) {
+    Notification::new()
+        ->title('Update Ready')
+        ->message('Restart to install the update.')
+        ->addAction('Restart Now')
+        ->event('update.install')
+        ->show();
+});
+
+// No update available
+Event::listen(function (UpdateNotAvailable $event) {
+    // User manually checked for updates
+    Notification::new()
+        ->title('No Updates')
+        ->message('You are running the latest version.')
+        ->show();
+});
+```
+
+## Complete Update Flow
+
+Here's a complete example implementing the full update workflow:
+
+```php
+use Native\Desktop\Facades\AutoUpdater;
+use Native\Desktop\Facades\Notification;
+use Native\Desktop\Events\AutoUpdater\UpdateAvailable;
+use Native\Desktop\Events\AutoUpdater\UpdateDownloaded;
+use Native\Desktop\Events\AutoUpdater\DownloadProgress;
+
+class UpdateManager
+{
+    public function __construct()
+    {
+        $this->registerListeners();
+    }
+
+    protected function registerListeners()
+    {
+        // When update is available
+        Event::listen(function (UpdateAvailable $event) {
+            Notification::new()
+                ->title('Update Available')
+                ->message("Version {$event->version} is ready to download.")
+                ->addAction('Download Now')
+                ->addAction('Later')
+                ->event('update.prompt')
+                ->show();
+        });
+
+        // When update is downloaded
+        Event::listen(function (UpdateDownloaded $event) {
+            Notification::new()
+                ->title('Update Downloaded')
+                ->message('Restart the app to install the update.')
+                ->addAction('Restart Now')
+                ->addAction('Later')
+                ->event('update.install-prompt')
+                ->show();
+        });
+
+        // Handle download progress
+        Event::listen(function (DownloadProgress $event) {
+            $percent = $event->percent;
+            // Update UI with progress
+        });
+    }
+
+    public function checkForUpdates()
+    {
+        AutoUpdater::checkForUpdates();
+    }
+
+    public function downloadUpdate()
+    {
+        AutoUpdater::downloadUpdate();
+        
+        Notification::new()
+            ->title('Downloading Update')
+            ->message('The update is being downloaded in the background.')
+            ->show();
+    }
+
+    public function installUpdate()
+    {
+        AutoUpdater::quitAndInstall();
+    }
+}
+```
+
+## Automatic Update Checks
+
+Implement automatic update checks on application startup:
+
+```php
+class AppServiceProvider extends ServiceProvider
+{
+    public function boot()
+    {
+        // Check for updates when app starts
+        if (config('app.check_updates_on_start')) {
+            AutoUpdater::checkForUpdates();
+        }
+    }
+}
+```
+
+Or check periodically:
+
+```php
+use Illuminate\Console\Scheduling\Schedule;
+
+class Kernel extends ConsoleKernel
+{
+    protected function schedule(Schedule $schedule)
+    {
+        $schedule->call(function () {
+            AutoUpdater::checkForUpdates();
+        })->daily();
+    }
+}
+```
+
+## User-Initiated Updates
+
+Allow users to manually check for updates:
+
+```php
+use Native\Desktop\Facades\AutoUpdater;
+
+class SettingsController extends Controller
+{
+    public function checkForUpdates()
+    {
+        AutoUpdater::checkForUpdates();
+        
+        return response()->json([
+            'message' => 'Checking for updates...'
+        ]);
+    }
+}
+```
+
+## Update Preferences
+
+Let users control update behavior:
+
+```php
+class UpdatePreferences
+{
+    public function setAutoDownload(bool $enabled)
+    {
+        Setting::set('updates.auto_download', $enabled);
+    }
+
+    public function setAutoInstall(bool $enabled)
+    {
+        Setting::set('updates.auto_install', $enabled);
+    }
+
+    public function shouldAutoDownload(): bool
+    {
+        return Setting::get('updates.auto_download', true);
+    }
+
+    public function shouldAutoInstall(): bool
+    {
+        return Setting::get('updates.auto_install', false);
+    }
+}
+```
+
+Then use these preferences in your event listeners:
+
+```php
+Event::listen(function (UpdateAvailable $event) {
+    $preferences = app(UpdatePreferences::class);
+    
+    if ($preferences->shouldAutoDownload()) {
+        AutoUpdater::downloadUpdate();
+    } else {
+        // Show notification to user
+    }
+});
+
+Event::listen(function (UpdateDownloaded $event) {
+    $preferences = app(UpdatePreferences::class);
+    
+    if ($preferences->shouldAutoInstall()) {
+        AutoUpdater::quitAndInstall();
+    } else {
+        // Show notification to user
+    }
+});
+```
+
+## Configuration
+
+Configure your update server in your application's configuration:
+
+```php
+// config/nativephp.php
+
+return [
+    'updater' => [
+        'enabled' => env('UPDATER_ENABLED', true),
+        'url' => env('UPDATER_URL'),
+    ],
+];
+```
+
+## Publishing Updates
+
+To make updates available to your users, you need to:
+
+<Steps>
+
+### Build Your Application
+
+Create a new build of your application with the updated version number.
+
+### Upload to Update Server
+
+Upload the build files to your update server in the correct format.
+
+### Generate Update Manifest
+
+Create or update the manifest file that describes the available versions.
+
+### Test the Update
+
+Test the update process with a development build before releasing to users.
+
+</Steps>
+
+<Note>
+The exact update server setup depends on your deployment platform. Refer to the NativePHP deployment documentation for platform-specific instructions.
+</Note>
+
+## Best Practices
+
+- Always test updates thoroughly before releasing
+- Provide clear release notes to users
+- Allow users to control update behavior
+- Implement proper error handling for failed updates
+- Consider staged rollouts for major updates
+- Keep update packages as small as possible
+
+## Troubleshooting
+
+Common issues and solutions:
+
+**Updates not detected:**
+- Verify your update server URL is correct
+- Check that the manifest file is properly formatted
+- Ensure version numbers follow semantic versioning
+
+**Download fails:**
+- Check network connectivity
+- Verify the download URL is accessible
+- Ensure sufficient disk space
+
+**Installation fails:**
+- Check file permissions
+- Verify the update package is not corrupted
+- Ensure no antivirus software is blocking the installation
